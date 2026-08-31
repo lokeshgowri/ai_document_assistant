@@ -1,17 +1,31 @@
-from sentence_transformers import SentenceTransformer
+import ollama
 
 
 class EmbeddingService:
 
-    def __init__(self, model_name: str = "all-MiniLM-L6-v2"):
-        self.model = SentenceTransformer(model_name)
+    def __init__(self, model: str = "nomic-embed-text"):
+        self.model = model
 
     def embed_text(self, text: str) -> list[float]:
-        embedding = self.model.encode(text)
+        """
+        Convert a single piece of text into an embedding vector.
+        """
 
-        return embedding.tolist()
+        response = ollama.embed(
+            model=self.model,
+            input=text
+        )
+
+        return response["embeddings"][0]
 
     def embed_texts(self, texts: list[str]) -> list[list[float]]:
-        embeddings = self.model.encode(texts)
+        """
+        Convert multiple texts into embedding vectors.
+        """
 
-        return embeddings.tolist()
+        response = ollama.embed(
+            model=self.model,
+            input=texts
+        )
+
+        return response["embeddings"]

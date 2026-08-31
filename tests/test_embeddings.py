@@ -1,20 +1,29 @@
-from sentence_transformers import util
-
 from app.services.embeddings import EmbeddingService
 
 
 embedding_service = EmbeddingService()
 
+
+# Test single text
+text = "Employees are entitled to 20 days of annual leave per year."
+
+vector = embedding_service.embed_text(text)
+
+print("\nSINGLE TEXT")
+print("Vector type:", type(vector))
+print("Vector length:", len(vector))
+print("First 5 values:", vector[:5])
+
+
+# Test multiple texts
 texts = [
-    "Employees receive 20 days of annual leave.",
-    "Workers get twenty days of vacation each year.",
-    "The company provides health insurance."
+    "Employees are entitled to 20 days of annual leave per year.",
+    "Employees should submit leave requests through the HR portal.",
+    "Leave requests should be submitted at least three working days in advance."
 ]
 
-embeddings = embedding_service.model.encode(texts)
+vectors = embedding_service.embed_texts(texts)
 
-similarity_1 = util.cos_sim(embeddings[0], embeddings[1])
-similarity_2 = util.cos_sim(embeddings[0], embeddings[2])
-
-print("Leave vs vacation:", similarity_1)
-print("Leave vs health insurance:", similarity_2)
+print("\nMULTIPLE TEXTS")
+print("Number of vectors:", len(vectors))
+print("Vector length:", len(vectors[0]))
