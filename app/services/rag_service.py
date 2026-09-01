@@ -60,8 +60,11 @@ class RAGService:
                     sources.append(source)
             return {
                 "answer": answer,
-                "sources": sources
-           }
+                "sources": [
+        result["metadata"]
+        for result in results
+    ]
+}
 
         except Exception as exc:
             raise RuntimeError(

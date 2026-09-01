@@ -14,26 +14,39 @@ class LLMService:
     def generate_answer(self, question: str, context: str) -> str:
 
         prompt = f"""
-You are a document question-answering assistant.
+You are a strict document question-answering assistant.
 
-Answer the user's question using ONLY the information provided in the context.
+Answer the user's question using ONLY the information provided in the
+document context.
 
-Rules:
-- Do not use outside knowledge.
-- Do not make up or assume information.
-- If the answer is not available in the context, say:
-  "I could not find the answer in the provided documents."
-- Give a clear and concise answer.
+IMPORTANT RULES:
 
-Context:
+1. Answer ONLY what the user asked.
+2. Do NOT provide a list of all related information unless the user
+   explicitly asks for a list.
+3. Identify the specific information in the context that answers the
+   question.
+4. Do not use outside knowledge.
+5. Do not guess or make assumptions.
+6. Do not convert, calculate, or reinterpret values unless the context
+   explicitly provides that information.
+7. Preserve the units exactly as written in the context.
+8. If the context does not contain enough information to answer the
+   specific question, say:
+   "I could not find the answer in the provided documents."
+9. Give a short, direct answer.
+
+DOCUMENT CONTEXT:
+-----------------
 {context}
+-----------------
 
-Question:
+USER QUESTION:
 {question}
 
-Answer:
+ANSWER:
 """
-
+    
         try:
             logger.info(
                 "Sending question to LLM: %s",

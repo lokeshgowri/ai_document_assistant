@@ -1,7 +1,73 @@
-Company Leave Policy
+COMPANY POLICIES
 
-Employees are entitled to 20 days of annual leave per year.
+1. Working Hours
+   - Standard working hours are Monday to Friday, 9:00 AM to 6:00 PM.
+   - Employees are expected to maintain punctuality and inform their manager in case of delays.
 
-Employees should submit leave requests through the HR portal.
+2. Code of Conduct
+   - Employees must maintain professionalism and respect towards colleagues, clients, and management.
+   - Harassment, discrimination, or any form of misconduct will not be tolerated.
 
-Leave requests should be submitted at least three working days in advance.
+3. Dress Code
+   - Business casual attire is required on regular working days.
+   - Formal attire is expected during client meetings and official events.
+
+4. Confidentiality
+   - Employees must protect company data, client information, and trade secrets.
+   - Sharing confidential information with unauthorized parties is strictly prohibited.
+
+5. Attendance
+   - Employees must record attendance daily through the company portal.
+   - Frequent unexplained absences may lead to disciplinary action.
+
+
+LEAVE POLICIES
+
+1. Casual Leave (CL)
+   - 12 days per year.
+   - Must be applied for at least 1 day in advance, except in emergencies.
+
+2. Sick Leave (SL)
+   - 10 days per year.
+   - Medical certificate required for leaves exceeding 3 consecutive days.
+
+3. Earned/Privilege Leave (EL/PL)
+   - 15 days per year, accrued monthly.
+   - Can be carried forward up to 30 days; excess is encashed at year-end.
+
+4. Maternity Leave
+   - 26 weeks as per statutory guidelines.
+
+5. Paternity Leave
+   - 10 working days.
+
+6. Public Holidays
+   - As per the company's annual holiday calendar (typically 10-12 declared holidays).
+
+7. Leave Application Process
+   - All leave requests must be submitted through the HR portal and approved by the reporting manager.
+
+
+SALARY STRUCTURE (SAMPLE)
+
+Designation: Software Engineer
+Annual CTC: ₹8,00,000
+
+Component               | Monthly Amount (₹)
+-------------------------|--------------------
+Basic Salary             | 33,333
+House Rent Allowance     | 16,667
+Special Allowance        | 12,000
+Conveyance Allowance     | 2,000
+Medical Allowance        | 1,250
+Provident Fund (Employer)| 4,000
+Gross Monthly Salary     | 65,250
+
+Deductions:
+- Provident Fund (Employee): 4,000
+- Professional Tax: 200
+- Income Tax (TDS): As per applicable slab
+
+Net Monthly Salary (Approx): 60,000 - 61,000 (varies based on tax slab)
+
+Note: This is a sample document for illustrative purposes only. Actual company policies and salary structures may vary based on organizational guidelines.

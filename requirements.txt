@@ -8,3 +8,4 @@ sentence-transformers
 faiss-cpu
 numpy
 ollama
+pytest
