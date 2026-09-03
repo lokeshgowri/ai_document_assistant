@@ -34,7 +34,7 @@ IMPORTANT RULES:
 8. If the context does not contain enough information to answer the
    specific question, say:
    "I could not find the answer in the provided documents."
-9. Give a short, direct answer.
+9. Give a short, direct answer and in breif if user asks for it.
 
 DOCUMENT CONTEXT:
 -----------------

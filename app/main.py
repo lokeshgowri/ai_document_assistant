@@ -1,4 +1,6 @@
 from fastapi import FastAPI, HTTPException
+from pathlib import Path
+import faiss
 
 from app.models.schemas import AskRequest, AskResponse
 from app.services.embeddings import EmbeddingService
@@ -19,60 +21,50 @@ app = FastAPI(
 # --------------------------------------------------
 
 embedding_service = EmbeddingService()
+
 indexing_service = IndexingService()
 
-
-# --------------------------------------------------
-# Sample document chunks
-# --------------------------------------------------
-
-chunks = [
-    {
-        "source": "sample.txt",
-        "text": "Employees are entitled to 20 days of annual leave per year."
-    },
-    {
-        "source": "sample.txt",
-        "text": "Employees should submit leave requests through the HR portal."
-    },
-    {
-        "source": "sample.txt",
-        "text": "Leave requests should be submitted at least three working days in advance."
-    }
-]
-
-
-# --------------------------------------------------
-# Create embeddings for sample chunks
-# --------------------------------------------------
-
-texts = [
-    chunk["text"]
-    for chunk in chunks
-]
-
-embeddings = embedding_service.embed_texts(texts)
-
-
-# --------------------------------------------------
-# Create FAISS vector store
-# --------------------------------------------------
-
-dimension = len(embeddings[0])
-
-vector_store = VectorStore(dimension)
-
-vector_store.add_vectors(
-    embeddings,
-    chunks
-)
-
-
-# --------------------------------------------------
-# Create RAG service
-# --------------------------------------------------
-
 rag_service = None
+
+
+# Check whether a saved index already exists
+index_path = Path("data/index.faiss")
+metadata_path = Path("data/metadata.json")
+
+if index_path.exists() and metadata_path.exists():
+
+    try:
+        # Load saved FAISS index
+        
+
+        # Read the saved FAISS index
+        saved_index = faiss.read_index(
+            str(index_path)
+            )
+        # Get the actual dimension
+        dimension = saved_index.d
+        # Create VectorStore with the correct dimension
+        vector_store = VectorStore(dimension)
+        # Load the saved index + metadata
+        vector_store.load(
+            str(index_path)
+        )
+
+        # Create RAG service using loaded index
+        rag_service = RAGService(
+            vector_store=vector_store,
+            embedding_service=embedding_service
+        )
+
+        print(
+            "Existing FAISS index loaded successfully."
+        )
+
+    except Exception as exc:
+
+        print(
+            f"Failed to load existing index: {exc}"
+        )
 
 
 # --------------------------------------------------
@@ -113,7 +105,9 @@ def ask_question(request: AskRequest):
     try:
         return rag_service.ask(
             question=request.question,
-            top_k=request.top_k
+            top_k=request.top_k,
+            source=request.source,
+            section=request.section
         )
 
     except ValueError as exc:

@@ -9,7 +9,7 @@ class FakeEmbeddingService:
 
 class FakeVectorStore:
 
-    def search(self, query_vector, top_k=3):
+    def search(self, query_vector, top_k=3,section=None):
 
         return [
             {
@@ -44,7 +44,8 @@ def test_rag_service_ask():
 
     result = rag_service.ask(
         question="How many paid leave days do employees get?",
-        top_k=3
+        top_k=3,
+        section=None
     )
 
     assert result["answer"] == (
@@ -68,7 +69,8 @@ def test_rag_service_empty_question():
     try:
         rag_service.ask(
             question="",
-            top_k=3
+            top_k=3,
+            section=None
         )
 
         assert False, "Expected ValueError"
@@ -90,7 +92,8 @@ def test_rag_service_invalid_top_k():
     try:
         rag_service.ask(
             question="What is the leave policy?",
-            top_k=0
+            top_k=0,
+            section=None
         )
 
         assert False, "Expected ValueError"

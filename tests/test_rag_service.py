@@ -52,7 +52,8 @@ question = "What is the company's maternity leave policy?"
 
 result = rag_service.ask(
     question=question,
-    top_k=2
+    top_k=2,
+    section=None
 )
 
 

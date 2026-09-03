@@ -1,14 +1,27 @@
 from app.services.llm_service import LLMService
 from app.services.vector_store import VectorStore
+import app.services.reranker as Reranker
 
 class RAGService:
 
     def __init__(self, vector_store, embedding_service):
+
+        print("1. Creating RAGService")
+
         self.vector_store = vector_store
         self.embedding_service = embedding_service
+
+        print("2. Creating LLMService")
+
         self.llm_service = LLMService()
 
-    def ask(self, question: str, top_k: int = 3):
+        print("3. Creating Reranker")
+
+        self.reranker = Reranker()
+
+        print("4. RAGService created successfully")
+
+    def ask(self, question: str, top_k: int = 3, source: str | None = None, section: str | None = None):
 
         # Validate question
         if not question or not question.strip():
@@ -21,12 +34,41 @@ class RAGService:
         try:
             # Step 1: Convert question into a vector
             query_vector = self.embedding_service.embed_text(question)
-
+            
             # Step 2: Search FAISS
+            retrieval_k = 10
+
             results = self.vector_store.search(
                 query_vector,
-                top_k=top_k
+                top_k=retrieval_k,
+                source=source,
+                section=section
             )
+            print("FAISS RESULTS:", len(results))
+            try:
+                 results = self.reranker.rerank(
+                      question,
+                      results,
+                      top_k=top_k
+                      )
+            except Exception as e:
+                 print("RERANKER ERROR:", repr(e))
+                 raise
+            if not results:
+                return {
+                    "answer": "I could not find the answer in the provided documents.",
+                    "sources": []
+                    }
+            print("\n===== RETRIEVAL RESULTS =====")
+            for rank, result in enumerate(results, start=1):
+                 print(f"\nRank: {rank}")
+                 print(f"FAISS Distance: {result['distance']}")
+                 print(f"Rerank Score: {result.get('rerank_score')}")
+                 metadata = result["metadata"]
+                 print(f"Source: {metadata.get('source')}")
+                 
+                 print(f"Text: {metadata.get('text')}")
+                 print("=============================\n")
 
             # Step 3: Handle no results
             if not results:
@@ -67,6 +109,7 @@ class RAGService:
 }
 
         except Exception as exc:
+            
             raise RuntimeError(
                 "Failed to process the question."
             ) from exc

@@ -1,8 +1,10 @@
 from pathlib import Path
 
+from docx import document
+
 from app.services.document_loader import load_document
 from app.services.text_cleaner import clean_text
-from app.services.chunker import chunk_text
+from app.services.chunker import chunk_text_with_metadata
 from app.services.embeddings import EmbeddingService
 from app.services.vector_store import VectorStore
 
@@ -15,6 +17,15 @@ class IndexingService:
         self.embedding_service = EmbeddingService()
 
         self.vector_store = None
+
+        # Path where FAISS index will be saved
+        self.index_path = self.data_directory / "index.faiss"
+
+        self.supported_extensions = {
+            ".txt",
+            ".pdf",
+            ".docx"
+            }
 
     def build_index(self) -> dict:
 
@@ -31,6 +42,10 @@ class IndexingService:
             if not file_path.is_file():
                 continue
 
+            # Process only supported document types
+            if file_path.suffix.lower() not in self.supported_extensions:
+                continue
+
             try:
                 document = load_document(str(file_path))
 
@@ -41,14 +56,18 @@ class IndexingService:
                     continue
 
                 # Step 3: Split text into chunks
-                chunks = chunk_text(cleaned_text)
+                cleaned_text = clean_text(document["text"])
 
-                # Step 4: Attach source information
-                for chunk in chunks:
-                    all_chunks.append({
-                        "source": document["source"],
-                        "text": chunk
-                    })
+                chunks = chunk_text_with_metadata(cleaned_text)
+                for chunk_index, chunk in enumerate(chunks):
+                     file_path = Path(document["source"])
+                     all_chunks.append({
+                          "source": document["source"],
+                          "section": chunk["section"],
+                          "document_type": file_path.suffix.lower().lstrip("."),
+                          "chunk_id": f"{file_path.name}_chunk_{chunk_index}",
+                          "text": chunk["text"]
+                          })
 
             except Exception as exc:
                 print(
@@ -81,13 +100,18 @@ class IndexingService:
             all_chunks
         )
 
+        # Step 8: Save FAISS index + metadata
+        self.vector_store.save(
+            str(self.index_path)
+        )
+
         return {
             "documents": sum(
                 1
                 for file_path in self.data_directory.iterdir()
                 if file_path.is_file()
-                and file_path.suffix.lower() in {".txt", ".pdf", ".docx"}
-                ),
+                and file_path.suffix.lower() in self.supported_extensions
+            ),
             "chunks": len(all_chunks),
             "embedding_dimension": dimension
         }

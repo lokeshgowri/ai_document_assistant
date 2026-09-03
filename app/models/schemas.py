@@ -12,6 +12,9 @@ class AskRequest(BaseModel):
         ge=1,
         description="Number of relevant chunks to retrieve."
     )
+    source: str | None = None
+    
+    section: str | None = None
 
 class Source(BaseModel):
     source: str

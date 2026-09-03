@@ -1,0 +1,268 @@
+[
+  {
+    "source": "sample.docx",
+    "section": "COMPANY POLICIES",
+    "document_type": "docx",
+    "chunk_id": "sample.docx_chunk_0",
+    "text": "Working Hours\nStandard working hours are Monday to Friday, 9:00 AM to 6:00 PM. Employees are expected to maintain punctuality and inform their manager in case of delays. Code of Conduct\nEmployees must maintain professionalism and respect towards colleagues, clients, and management. Harassment, discrimination, or any form of misconduct will not be tolerated. Dress Code\nBusiness casual attire is required on regular working days."
+  },
+  {
+    "source": "sample.docx",
+    "section": "COMPANY POLICIES",
+    "document_type": "docx",
+    "chunk_id": "sample.docx_chunk_1",
+    "text": "Formal attire is expected during client meetings and official events. Confidentiality\nEmployees must protect company data, client information, and trade secrets. Sharing confidential information with unauthorized parties is strictly prohibited. Attendance\nEmployees must record attendance daily through the company portal. Frequent unexplained absences may lead to disciplinary action."
+  },
+  {
+    "source": "sample.docx",
+    "section": "LEAVE POLICIES",
+    "document_type": "docx",
+    "chunk_id": "sample.docx_chunk_2",
+    "text": "Casual Leave (CL)\n12 days per year. Must be applied for at least 1 day in advance, except in emergencies. Sick Leave (SL)\n10 days per year. Medical certificate required for leaves exceeding 3 consecutive days. Earned/Privilege Leave (EL/PL)\n15 days per year, accrued monthly. Can be carried forward up to 30 days; excess is encashed at year-end. Maternity Leave\n26 weeks as per statutory guidelines. Paternity Leave\n10 working days."
+  },
+  {
+    "source": "sample.docx",
+    "section": "LEAVE POLICIES",
+    "document_type": "docx",
+    "chunk_id": "sample.docx_chunk_3",
+    "text": "Paternity Leave\n10 working days. Public Holidays\nAs per the company's annual holiday calendar (typically 10-12 declared holidays). Leave Application Process\nAll leave requests must be submitted through the HR portal and approved by the reporting manager."
+  },
+  {
+    "source": "sample.docx",
+    "section": "SALARY STRUCTURE (SAMPLE)",
+    "document_type": "docx",
+    "chunk_id": "sample.docx_chunk_4",
+    "text": "Designation: Software Engineer Annual CTC: ₹8,00,000\nComponent | Monthly Amount (₹)\n-------------------------|--------------------\nProvident Fund (Employer)| 4,000 Gross Monthly Salary | 65,250\nDeductions:\nProvident Fund (Employee): 4,000\nProfessional Tax: 200\nIncome Tax (TDS): As per applicable slab\nNet Monthly Salary (Approx): 60,000 - 61,000 (varies based on tax slab)\nNote: This is a sample document for illustrative purposes only."
+  },
+  {
+    "source": "sample.docx",
+    "section": "SALARY STRUCTURE (SAMPLE)",
+    "document_type": "docx",
+    "chunk_id": "sample.docx_chunk_5",
+    "text": "Actual company policies and salary structures may vary based on organizational guidelines."
+  },
+  {
+    "source": "sample.pdf",
+    "section": "1. Working Hours",
+    "document_type": "pdf",
+    "chunk_id": "sample.pdf_chunk_0",
+    "text": "- Standard working hours are Monday to Friday, 9:00 AM to 6:00 PM. - Employees are expected to maintain punctuality and inform their manager\nin case of delays."
+  },
+  {
+    "source": "sample.pdf",
+    "section": "2. Code of Conduct",
+    "document_type": "pdf",
+    "chunk_id": "sample.pdf_chunk_1",
+    "text": "- Employees must maintain professionalism and respect towards colleagues,\nclients, and management. - Harassment, discrimination, or any form of misconduct will not be\ntolerated."
+  },
+  {
+    "source": "sample.pdf",
+    "section": "3. Dress Code",
+    "document_type": "pdf",
+    "chunk_id": "sample.pdf_chunk_2",
+    "text": "- Business casual attire is required on regular working days. - Formal attire is expected during client meetings and official events."
+  },
+  {
+    "source": "sample.pdf",
+    "section": "4. Confidentiality",
+    "document_type": "pdf",
+    "chunk_id": "sample.pdf_chunk_3",
+    "text": "- Employees must protect company data, client information, and trade\nsecrets. - Sharing confidential information with unauthorized parties is strictly\nprohibited."
+  },
+  {
+    "source": "sample.pdf",
+    "section": "5. Attendance",
+    "document_type": "pdf",
+    "chunk_id": "sample.pdf_chunk_4",
+    "text": "- Employees must record attendance daily through the company portal. - Frequent unexplained absences may lead to disciplinary action."
+  },
+  {
+    "source": "sample.pdf",
+    "section": "1. Casual Leave (CL)",
+    "document_type": "pdf",
+    "chunk_id": "sample.pdf_chunk_5",
+    "text": "- 12 days per year. - Must be applied for at least 1 day in advance, except in emergencies."
+  },
+  {
+    "source": "sample.pdf",
+    "section": "2. Sick Leave (SL)",
+    "document_type": "pdf",
+    "chunk_id": "sample.pdf_chunk_6",
+    "text": "- 10 days per year. - Medical certificate required for leaves exceeding 3 consecutive days."
+  },
+  {
+    "source": "sample.pdf",
+    "section": "3. Earned/Privilege Leave (EL/PL)",
+    "document_type": "pdf",
+    "chunk_id": "sample.pdf_chunk_7",
+    "text": "- 15 days per year, accrued monthly. - Can be carried forward up to 30 days; excess is encashed at year-end."
+  },
+  {
+    "source": "sample.pdf",
+    "section": "4. Maternity Leave",
+    "document_type": "pdf",
+    "chunk_id": "sample.pdf_chunk_8",
+    "text": "- 26 weeks as per statutory guidelines."
+  },
+  {
+    "source": "sample.pdf",
+    "section": "5. Paternity Leave",
+    "document_type": "pdf",
+    "chunk_id": "sample.pdf_chunk_9",
+    "text": "- 10 working days."
+  },
+  {
+    "source": "sample.pdf",
+    "section": "6. Public Holidays",
+    "document_type": "pdf",
+    "chunk_id": "sample.pdf_chunk_10",
+    "text": "- As per the company's annual holiday calendar (typically 10-12 declared\nholidays)."
+  },
+  {
+    "source": "sample.pdf",
+    "section": "7. Leave Application Process",
+    "document_type": "pdf",
+    "chunk_id": "sample.pdf_chunk_11",
+    "text": "- All leave requests must be submitted through the HR portal and approved\nby the reporting manager."
+  },
+  {
+    "source": "sample.pdf",
+    "section": "SALARY STRUCTURE (SAMPLE)",
+    "document_type": "pdf",
+    "chunk_id": "sample.pdf_chunk_12",
+    "text": "Designation: Software Engineer\nAnnual CTC: ₹8,00,000\nComponent | Monthly Amount ( ₹)\n-------------------------|--------------------\nBasic Salary | 33,333\nHouse Rent Allowance | 16,667\nSpecial Allowance | 12,000\nConveyance Allowance | 2,000\nMedical Allowance | 1,250\nProvident Fund (Employer)| 4,000\nGross Monthly Salary | 65,250\nDeductions:\n- Provident Fund (Employee): 4,000\n- Professional Tax: 200\n- Income Tax (TDS): As per applicable slab\nNet Monthly Salary (Approx): 60,000 - 61,000 (varies based on tax slab)\nNote: This is a sample document for illustrative purposes only."
+  },
+  {
+    "source": "sample.pdf",
+    "section": "SALARY STRUCTURE (SAMPLE)",
+    "document_type": "pdf",
+    "chunk_id": "sample.pdf_chunk_13",
+    "text": "Actual\ncompany policies and salary structures may vary based on organizational\nguidelines."
+  },
+  {
+    "source": "sample.txt",
+    "section": "1. Working Hours",
+    "document_type": "txt",
+    "chunk_id": "sample.txt_chunk_0",
+    "text": "- Standard working hours are Monday to Friday, 9:00 AM to 6:00 PM. - Employees are expected to maintain punctuality and inform their manager in case of delays."
+  },
+  {
+    "source": "sample.txt",
+    "section": "2. Code of Conduct",
+    "document_type": "txt",
+    "chunk_id": "sample.txt_chunk_1",
+    "text": "- Employees must maintain professionalism and respect towards colleagues, clients, and management. - Harassment, discrimination, or any form of misconduct will not be tolerated."
+  },
+  {
+    "source": "sample.txt",
+    "section": "3. Dress Code",
+    "document_type": "txt",
+    "chunk_id": "sample.txt_chunk_2",
+    "text": "- Business casual attire is required on regular working days. - Formal attire is expected during client meetings and official events."
+  },
+  {
+    "source": "sample.txt",
+    "section": "4. Confidentiality",
+    "document_type": "txt",
+    "chunk_id": "sample.txt_chunk_3",
+    "text": "- Employees must protect company data, client information, and trade secrets. - Sharing confidential information with unauthorized parties is strictly prohibited."
+  },
+  {
+    "source": "sample.txt",
+    "section": "5. Attendance",
+    "document_type": "txt",
+    "chunk_id": "sample.txt_chunk_4",
+    "text": "- Employees must record attendance daily through the company portal. - Frequent unexplained absences may lead to disciplinary action."
+  },
+  {
+    "source": "sample.txt",
+    "section": "1. Casual Leave (CL)",
+    "document_type": "txt",
+    "chunk_id": "sample.txt_chunk_5",
+    "text": "- 12 days per year. - Must be applied for at least 1 day in advance, except in emergencies."
+  },
+  {
+    "source": "sample.txt",
+    "section": "2. Sick Leave (SL)",
+    "document_type": "txt",
+    "chunk_id": "sample.txt_chunk_6",
+    "text": "- 10 days per year. - Medical certificate required for leaves exceeding 3 consecutive days."
+  },
+  {
+    "source": "sample.txt",
+    "section": "3. Earned/Privilege Leave (EL/PL)",
+    "document_type": "txt",
+    "chunk_id": "sample.txt_chunk_7",
+    "text": "- 15 days per year, accrued monthly. - Can be carried forward up to 30 days; excess is encashed at year-end."
+  },
+  {
+    "source": "sample.txt",
+    "section": "4. Maternity Leave",
+    "document_type": "txt",
+    "chunk_id": "sample.txt_chunk_8",
+    "text": "- 26 weeks as per statutory guidelines."
+  },
+  {
+    "source": "sample.txt",
+    "section": "5. Paternity Leave",
+    "document_type": "txt",
+    "chunk_id": "sample.txt_chunk_9",
+    "text": "- 10 working days."
+  },
+  {
+    "source": "sample.txt",
+    "section": "6. Public Holidays",
+    "document_type": "txt",
+    "chunk_id": "sample.txt_chunk_10",
+    "text": "- As per the company's annual holiday calendar (typically 10-12 declared holidays)."
+  },
+  {
+    "source": "sample.txt",
+    "section": "7. Leave Application Process",
+    "document_type": "txt",
+    "chunk_id": "sample.txt_chunk_11",
+    "text": "- All leave requests must be submitted through the HR portal and approved by the reporting manager."
+  },
+  {
+    "source": "sample.txt",
+    "section": "SALARY STRUCTURE (SAMPLE)",
+    "document_type": "txt",
+    "chunk_id": "sample.txt_chunk_12",
+    "text": "Designation: Software Engineer\nAnnual CTC: ₹8,00,000\nComponent | Monthly Amount (₹)\n-------------------------|--------------------\nBasic Salary | 33,333\nHouse Rent Allowance | 16,667\nSpecial Allowance | 12,000\nConveyance Allowance | 2,000\nMedical Allowance | 1,250\nProvident Fund (Employer)| 4,000\nGross Monthly Salary | 65,250\nDeductions:\n- Provident Fund (Employee): 4,000\n- Professional Tax: 200\n- Income Tax (TDS): As per applicable slab\nNet Monthly Salary (Approx): 60,000 - 61,000 (varies based on tax slab)\nNote: This is a sample document for illustrative purposes only."
+  },
+  {
+    "source": "sample.txt",
+    "section": "SALARY STRUCTURE (SAMPLE)",
+    "document_type": "txt",
+    "chunk_id": "sample.txt_chunk_13",
+    "text": "Actual company policies and salary structures may vary based on organizational guidelines."
+  },
+  {
+    "source": "sample2.txt",
+    "section": null,
+    "document_type": "txt",
+    "chunk_id": "sample2.txt_chunk_0",
+    "text": "* The company provides employees with a **work-from-home allowance of ₹5,000 per year**. * The company provides employees with **health insurance coverage** for medical expenses. * Employees are entitled to **paid annual leave and sick leave** as per company policy. * The company provides employees with **learning and development opportunities** to improve their technical skills. * Employees may receive **performance-based increments and bonuses** based on their performance."
+  },
+  {
+    "source": "sample2.txt",
+    "section": null,
+    "document_type": "txt",
+    "chunk_id": "sample2.txt_chunk_1",
+    "text": "* The company provides employees with **training and certification opportunities** based on project requirements. * Employees may have the opportunity to **work with international clients and gain global project exposure**. * The company provides **flexible working arrangements** depending on the project and client requirements. * Employees receive **PF and other statutory benefits** as applicable."
+  },
+  {
+    "source": "sample2.txt",
+    "section": null,
+    "document_type": "txt",
+    "chunk_id": "sample2.txt_chunk_2",
+    "text": "* The company may provide **employee assistance and wellness programs** to support employee well-being. * Employees get opportunities for **career growth and internal role progression**. * The company may organize **team outings, employee engagement activities, and company events**. * Employees may receive **shift allowances or other applicable allowances** depending on their work schedule. * The company provides employees with a **professional and collaborative work environment**."
+  },
+  {
+    "source": "sample2.txt",
+    "section": null,
+    "document_type": "txt",
+    "chunk_id": "sample2.txt_chunk_3",
+    "text": "* Employees can gain **hands-on experience with modern technologies** through real-world projects."
+  }
+]
