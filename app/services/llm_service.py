@@ -11,7 +11,11 @@ class LLMService:
     def __init__(self, model: str = "llama3.2"):
         self.model = model
 
-    def generate_answer(self, question: str, context: str) -> str:
+    def generate_answer(
+        self,
+        question: str,
+        context: str
+    ) -> str:
 
         prompt = f"""
 You are a strict document question-answering assistant.
@@ -34,7 +38,7 @@ IMPORTANT RULES:
 8. If the context does not contain enough information to answer the
    specific question, say:
    "I could not find the answer in the provided documents."
-9. Give a short, direct answer and in breif if user asks for it.
+9. Give a short, direct answer and be brief if the user asks for it.
 
 DOCUMENT CONTEXT:
 -----------------
@@ -46,8 +50,9 @@ USER QUESTION:
 
 ANSWER:
 """
-    
+
         try:
+
             logger.info(
                 "Sending question to LLM: %s",
                 question
@@ -60,12 +65,17 @@ ANSWER:
 
             answer = response["response"].strip()
 
-            logger.info("LLM response generated successfully.")
+            logger.info(
+                "LLM response generated successfully."
+            )
 
             return answer
 
         except Exception as exc:
-            logger.exception("LLM request failed.")
+
+            logger.exception(
+                "LLM request failed."
+            )
 
             raise RuntimeError(
                 "Failed to generate an answer using the LLM."

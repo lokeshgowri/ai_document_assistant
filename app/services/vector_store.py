@@ -1,7 +1,8 @@
-import faiss
-import numpy as np
 import json
 from pathlib import Path
+
+import faiss
+import numpy as np
 
 
 class VectorStore:
@@ -25,7 +26,8 @@ class VectorStore:
         query_vector,
         top_k: int = 3,
         source: str | None = None,
-        section: str | None = None
+        section: str | None = None,
+        distance_threshold: float | None = None
     ):
 
         query_array = np.array(
@@ -33,9 +35,7 @@ class VectorStore:
             dtype="float32"
         )
 
-        # If filtering is requested, retrieve all vectors
-        # so that we can apply the metadata filter afterward.
-        if source or section:
+        if source or section or distance_threshold is not None:
             search_k = self.index.ntotal
         else:
             search_k = top_k
@@ -55,9 +55,14 @@ class VectorStore:
             if index == -1:
                 continue
 
+            if (
+                distance_threshold is not None
+                and distance > distance_threshold
+            ):
+                continue
+
             metadata = self.metadata[index]
 
-            #Apply source filter
             if source:
 
                 metadata_source = metadata.get(
@@ -70,7 +75,6 @@ class VectorStore:
                 if source.lower() not in metadata_source.lower():
                     continue
 
-            # Apply section filter
             if section:
 
                 metadata_section = metadata.get(
@@ -88,7 +92,6 @@ class VectorStore:
                 "metadata": metadata
             })
 
-            # Stop after getting requested number of results
             if len(results) >= top_k:
                 break
 
@@ -96,22 +99,18 @@ class VectorStore:
 
     def save(self, index_path: str):
 
-        # Convert path to Path object
         index_path = Path(index_path)
 
-        # Make sure the directory exists
         index_path.parent.mkdir(
             parents=True,
             exist_ok=True
         )
 
-        # Save FAISS index
         faiss.write_index(
             self.index,
             str(index_path)
         )
 
-        # Save metadata
         metadata_path = index_path.parent / "metadata.json"
 
         with open(
@@ -129,15 +128,12 @@ class VectorStore:
 
     def load(self, index_path: str):
 
-        # Convert path to Path object
         index_path = Path(index_path)
 
-        # Load FAISS index
         self.index = faiss.read_index(
             str(index_path)
         )
 
-        # Load metadata
         metadata_path = index_path.parent / "metadata.json"
 
         with open(

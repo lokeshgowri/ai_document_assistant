@@ -1,108 +1,104 @@
-from fastapi import FastAPI, HTTPException
 from pathlib import Path
+
 import faiss
+from fastapi import FastAPI, HTTPException
 
 from app.models.schemas import AskRequest, AskResponse
 from app.services.embeddings import EmbeddingService
+from app.services.indexing_service import IndexingService
 from app.services.rag_service import RAGService
 from app.services.vector_store import VectorStore
-from app.services.indexing_service import IndexingService
 
 
 app = FastAPI(
     title="AI Document Q&A Assistant",
-    description="A RAG-based API for answering questions from documents.",
+    description=(
+        "A Retrieval-Augmented Generation (RAG) API "
+        "for answering questions from indexed documents "
+        "using semantic search, keyword search, reranking, "
+        "and a grounded language model."
+    ),
     version="1.0.0"
 )
 
 
-# --------------------------------------------------
-# Create embedding service
-# --------------------------------------------------
-
 embedding_service = EmbeddingService()
-
 indexing_service = IndexingService()
-
 rag_service = None
 
 
-# Check whether a saved index already exists
 index_path = Path("data/index.faiss")
 metadata_path = Path("data/metadata.json")
+
 
 if index_path.exists() and metadata_path.exists():
 
     try:
-        # Load saved FAISS index
-        
-
-        # Read the saved FAISS index
         saved_index = faiss.read_index(
             str(index_path)
-            )
-        # Get the actual dimension
+        )
+
         dimension = saved_index.d
-        # Create VectorStore with the correct dimension
+
         vector_store = VectorStore(dimension)
-        # Load the saved index + metadata
+
         vector_store.load(
             str(index_path)
         )
 
-        # Create RAG service using loaded index
         rag_service = RAGService(
             vector_store=vector_store,
             embedding_service=embedding_service
         )
 
-        print(
-            "Existing FAISS index loaded successfully."
-        )
-
-    except Exception as exc:
-
-        print(
-            f"Failed to load existing index: {exc}"
-        )
+    except Exception:
+        rag_service = None
 
 
-# --------------------------------------------------
-# Root endpoint
-# --------------------------------------------------
-
-@app.get("/")
+@app.get(
+    "/",
+    tags=["System"],
+    summary="Check API availability"
+)
 def root():
+
     return {
         "message": "AI Document Q&A Assistant is running."
     }
 
 
-# --------------------------------------------------
-# Health endpoint
-# --------------------------------------------------
-
-@app.get("/health")
+@app.get(
+    "/health",
+    tags=["System"],
+    summary="Check application health"
+)
 def health_check():
+
     return {
         "status": "ok"
     }
 
 
-
-# Ask endpoint
-
-
-@app.post("/ask", response_model=AskResponse)
+@app.post(
+    "/ask",
+    response_model=AskResponse,
+    tags=["Question Answering"],
+    summary="Ask a question about the documents"
+)
 def ask_question(request: AskRequest):
 
     if rag_service is None:
+
         raise HTTPException(
             status_code=400,
-            detail="Documents have not been indexed yet. Please call /index first."
+            detail=(
+                "Documents have not been indexed yet. "
+                "Please call /index first."
+            )
         )
 
     try:
+
         return rag_service.ask(
             question=request.question,
             top_k=request.top_k,
@@ -111,24 +107,31 @@ def ask_question(request: AskRequest):
         )
 
     except ValueError as exc:
+
         raise HTTPException(
             status_code=400,
             detail=str(exc)
         )
 
-    except RuntimeError as exc:
+    except RuntimeError:
+
         raise HTTPException(
             status_code=500,
-            detail=str(exc)
+            detail="Failed to process the question."
         )
-#indexing endpoint
 
-@app.post("/index")
+
+@app.post(
+    "/index",
+    tags=["Documents"],
+    summary="Index documents"
+)
 def index_documents():
 
     global rag_service
 
     try:
+
         result = indexing_service.build_index()
 
         rag_service = RAGService(
@@ -142,8 +145,9 @@ def index_documents():
             "details": result
         }
 
-    except Exception as exc:
+    except Exception:
+
         raise HTTPException(
             status_code=500,
-            detail=f"Failed to index documents: {str(exc)}"
+            detail="Failed to index documents."
         )

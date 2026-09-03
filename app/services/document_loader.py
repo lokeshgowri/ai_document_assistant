@@ -10,43 +10,59 @@ from app.exceptions import DocumentProcessingError
 logger = logging.getLogger(__name__)
 
 
-SUPPORTED_EXTENSIONS = {".txt", ".pdf", ".docx"}
+SUPPORTED_EXTENSIONS = {
+    ".txt",
+    ".pdf",
+    ".docx"
+}
 
 
 def load_document(file_path: str) -> dict:
     """
-    Load a TXT, PDF, or DOCX document and return its text and source.
+    Load a TXT, PDF, or DOCX document
+    and return its text and source.
     """
 
     path = Path(file_path)
+    extension = path.suffix.lower()
 
     if not path.exists():
-        raise FileNotFoundError(f"Document not found: {file_path}")
+        raise FileNotFoundError(
+            f"Document not found: {file_path}"
+        )
 
-    if path.suffix.lower() not in SUPPORTED_EXTENSIONS:
+    if extension not in SUPPORTED_EXTENSIONS:
         raise ValueError(
-            f"Unsupported document type: {path.suffix}"
+            f"Unsupported document type: {extension}"
         )
 
     try:
-        if path.suffix.lower() == ".txt":
+
+        if extension == ".txt":
             text = _load_txt(path)
 
-        elif path.suffix.lower() == ".pdf":
+        elif extension == ".pdf":
             text = _load_pdf(path)
 
         else:
             text = _load_docx(path)
 
-        logger.info("Successfully loaded document: %s", path.name)
+        logger.info(
+            "Successfully loaded document: %s",
+            path.name
+        )
 
         return {
             "text": text,
-            "source": path.name,
+            "source": path.name
         }
 
     except Exception as exc:
-        logger.exception("Failed to process document: %s", path.name)
+
+        logger.exception(
+            "Failed to process document: %s",
+            path.name
+        )
 
         raise DocumentProcessingError(
             f"Failed to process document: {path.name}"
@@ -54,16 +70,23 @@ def load_document(file_path: str) -> dict:
 
 
 def _load_txt(path: Path) -> str:
-    with path.open("r", encoding="utf-8") as file:
+
+    with path.open(
+        "r",
+        encoding="utf-8"
+    ) as file:
+
         return file.read()
 
 
 def _load_pdf(path: Path) -> str:
+
     reader = PdfReader(str(path))
 
     pages = []
 
     for page in reader.pages:
+
         page_text = page.extract_text()
 
         if page_text:
@@ -73,12 +96,16 @@ def _load_pdf(path: Path) -> str:
 
 
 def _load_docx(path: Path) -> str:
+
     document = Document(str(path))
 
     paragraphs = []
 
     for paragraph in document.paragraphs:
+
         if paragraph.text.strip():
-            paragraphs.append(paragraph.text)
+            paragraphs.append(
+                paragraph.text
+            )
 
     return "\n".join(paragraphs)

@@ -9,3 +9,4 @@ faiss-cpu
 numpy
 ollama
 pytest
+httpx2
