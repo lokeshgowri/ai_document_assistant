@@ -10,3 +10,4 @@ numpy
 ollama
 pytest
 httpx2
+python-multipart

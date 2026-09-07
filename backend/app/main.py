@@ -1,7 +1,8 @@
 from pathlib import Path
 
 import faiss
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, UploadFile, File
+from fastapi.middleware.cors import CORSMiddleware
 
 from app.models.schemas import AskRequest, AskResponse
 from app.services.embeddings import EmbeddingService
@@ -19,6 +20,16 @@ app = FastAPI(
         "and a grounded language model."
     ),
     version="1.0.0"
+)
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=[
+        "http://127.0.0.1:5500",
+        "http://localhost:5500",
+    ],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
 )
 
 
@@ -150,4 +161,88 @@ def index_documents():
         raise HTTPException(
             status_code=500,
             detail="Failed to index documents."
+        )
+
+@app.get(
+    "/index/status",
+    tags=["Documents"],
+    summary="Get current index status"
+)
+def get_index_status():
+
+    return indexing_service.get_index_status()
+
+
+@app.post(
+    "/upload",
+    tags=["Documents"],
+    summary="Upload a document"
+)
+async def upload_document(file: UploadFile = File(...)):
+
+    allowed_extensions = {
+        ".pdf",
+        ".docx",
+        ".txt"
+    }
+
+    filename = file.filename
+
+    if not filename:
+        raise HTTPException(
+            status_code=400,
+            detail="No file selected."
+        )
+
+    # Get file extension
+    extension = "." + filename.split(".")[-1].lower()
+
+    # Validate extension
+    if extension not in allowed_extensions:
+
+        raise HTTPException(
+            status_code=400,
+            detail=(
+                "Unsupported file type. "
+                "Only PDF, DOCX, and TXT files are allowed."
+            )
+        )
+
+    try:
+
+        # Create data directory if it doesn't exist
+        data_directory = "data"
+
+        import os
+
+        os.makedirs(
+            data_directory,
+            exist_ok=True
+        )
+
+        # Create file path
+        file_path = os.path.join(
+            data_directory,
+            filename
+        )
+
+        # Read uploaded file
+        contents = await file.read()
+
+        # Save file
+        with open(file_path, "wb") as destination:
+
+            destination.write(contents)
+
+        return {
+            "status": "success",
+            "message": "Document uploaded successfully.",
+            "filename": filename
+        }
+
+    except Exception:
+
+        raise HTTPException(
+            status_code=500,
+            detail="Failed to upload document."
         )

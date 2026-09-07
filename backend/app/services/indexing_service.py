@@ -1,4 +1,5 @@
 from pathlib import Path
+import json
 
 from app.services.chunker import chunk_text_with_metadata
 from app.services.document_loader import load_document
@@ -128,3 +129,65 @@ class IndexingService:
             "chunks": len(all_chunks),
             "embedding_dimension": dimension
         }
+
+    def get_index_status(self) -> dict:
+
+        """
+        Return the current persisted index status.
+
+        The document count is calculated from unique
+        source files in metadata.json.
+
+        The chunk count is the total number of
+        metadata entries.
+        """
+
+        if not self.index_path.exists():
+
+            return {
+                "indexed": False,
+                "documents": 0,
+                "chunks": 0
+            }
+
+        metadata_path = (
+            self.data_directory / "metadata.json"
+        )
+
+        if not metadata_path.exists():
+
+            return {
+                "indexed": False,
+                "documents": 0,
+                "chunks": 0
+            }
+
+        try:
+
+            with open(
+                metadata_path,
+                "r",
+                encoding="utf-8"
+            ) as file:
+
+                metadata = json.load(file)
+
+            unique_documents = {
+                item["source"]
+                for item in metadata
+                if item.get("source")
+            }
+
+            return {
+                "indexed": True,
+                "documents": len(unique_documents),
+                "chunks": len(metadata)
+            }
+
+        except Exception:
+
+            return {
+                "indexed": False,
+                "documents": 0,
+                "chunks": 0
+            }

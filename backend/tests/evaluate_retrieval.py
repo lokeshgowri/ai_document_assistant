@@ -4,7 +4,7 @@ from app.services.embeddings import EmbeddingService
 from app.services.vector_store import VectorStore
 from app.services.reranker import Reranker
 
-from tests.evaluation_dataset import evaluation_dataset
+from backend.tests.evaluation_dataset import evaluation_dataset
 
 
 INDEX_PATH = "data/index.faiss"
