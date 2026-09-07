@@ -156,7 +156,8 @@ def index_documents():
             "details": result
         }
 
-    except Exception:
+    except Exception as exc:
+        print(f"INDEX ERROR: {exc}")
 
         raise HTTPException(
             status_code=500,
