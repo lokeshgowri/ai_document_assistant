@@ -5,14 +5,6 @@ WORKDIR /app
 ENV PYTHONDONTWRITEBYTECODE=1
 ENV PYTHONUNBUFFERED=1
 
-RUN apt-get update && apt-get install -y \
-    curl \
-    ca-certificates \
-    zstd \
-    && rm -rf /var/lib/apt/lists/*
-
-RUN curl -fsSL https://ollama.com/install.sh | sh
-
 COPY requirements.txt .
 
 RUN pip install --no-cache-dir --upgrade pip \
@@ -20,11 +12,7 @@ RUN pip install --no-cache-dir --upgrade pip \
 
 COPY app ./app
 COPY data ./data
-COPY start.sh ./start.sh
-
-RUN sed -i 's/\r$//' ./start.sh \
-    && chmod +x ./start.sh
 
 EXPOSE 7860
 
-CMD ["./start.sh"]
+CMD ["sh", "-c", "uvicorn app.main:app --host 0.0.0.0 --port ${PORT:-7860}"]
