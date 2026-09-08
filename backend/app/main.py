@@ -112,7 +112,7 @@ app.add_middleware(
     allow_origins=[
         "http://127.0.0.1:5500",
         "http://localhost:5500",
-        " https://lokeshgowri.github.io/ai-document-qa-assistant_fe/",
+        " https://lokeshgowri.github.io",
     ],
     allow_credentials=True,
     allow_methods=["*"],
