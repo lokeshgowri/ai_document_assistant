@@ -1,5 +1,61 @@
 [
   {
+    "source": "12_data_protection_privacy_and_password_information_security.pdf",
+    "section": "DATA PROTECTION AND PRIVACY POLICY",
+    "document_type": "pdf",
+    "chunk_id": "12_data_protection_privacy_and_password_information_security.pdf_chunk_0",
+    "text": "Company: [Company Name]\nEffective Date: [Effective Date]"
+  },
+  {
+    "source": "12_data_protection_privacy_and_password_information_security.pdf",
+    "section": "PURPOSE",
+    "document_type": "pdf",
+    "chunk_id": "12_data_protection_privacy_and_password_information_security.pdf_chunk_1",
+    "text": "This policy describes how the Company protects personal and business data in compliance with\napplicable data protection laws."
+  },
+  {
+    "source": "12_data_protection_privacy_and_password_information_security.pdf",
+    "section": "POLICY",
+    "document_type": "pdf",
+    "chunk_id": "12_data_protection_privacy_and_password_information_security.pdf_chunk_2",
+    "text": " Personal data is collected, used, and stored only for legitimate business purposes.  Access to personal and sensitive data is restricted to employees who need it to perform their role.  Data must be stored securely and disposed of properly when no longer needed.  Any suspected data breach must be reported to IT/Security immediately."
+  },
+  {
+    "source": "12_data_protection_privacy_and_password_information_security.pdf",
+    "section": "EMPLOYEE AND CUSTOMER RIGHTS",
+    "document_type": "pdf",
+    "chunk_id": "12_data_protection_privacy_and_password_information_security.pdf_chunk_3",
+    "text": "Employees and customers may have rights regarding their personal data (such as access or\ncorrection) under applicable law. Requests should be directed to the designated data protection\ncontact. Acknowledgement: By continuing employment, employees acknowledge\nthat they have read, understood, and agree to comply with this policy."
+  },
+  {
+    "source": "12_data_protection_privacy_and_password_information_security.pdf",
+    "section": "PASSWORD AND INFORMATION SECURITY POLICY",
+    "document_type": "pdf",
+    "chunk_id": "12_data_protection_privacy_and_password_information_security.pdf_chunk_4",
+    "text": "Company: [Company Name]\nEffective Date: [Effective Date]"
+  },
+  {
+    "source": "12_data_protection_privacy_and_password_information_security.pdf",
+    "section": "PURPOSE",
+    "document_type": "pdf",
+    "chunk_id": "12_data_protection_privacy_and_password_information_security.pdf_chunk_5",
+    "text": "This policy sets minimum security standards to protect Company systems and information from\nunauthorized access."
+  },
+  {
+    "source": "12_data_protection_privacy_and_password_information_security.pdf",
+    "section": "POLICY",
+    "document_type": "pdf",
+    "chunk_id": "12_data_protection_privacy_and_password_information_security.pdf_chunk_6",
+    "text": " Use strong, unique passwords for all Company accounts and enable multi-factor authentication\nwhere available.  Never share passwords or login credentials with anyone, including coworkers.  Lock your workstation whenever it is unattended.  Report lost or stolen devices, or suspected security incidents, to IT immediately."
+  },
+  {
+    "source": "12_data_protection_privacy_and_password_information_security.pdf",
+    "section": "COMPLIANCE",
+    "document_type": "pdf",
+    "chunk_id": "12_data_protection_privacy_and_password_information_security.pdf_chunk_7",
+    "text": "Failure to follow information security requirements may result in disciplinary action, particularly where\nit leads to a security incident. Acknowledgement: By continuing employment, employees acknowledge\nthat they have read, understood, and agree to comply with this policy."
+  },
+  {
     "source": "1_drug_alcohol_and_emergency_procedures.txt",
     "section": null,
     "document_type": "txt",

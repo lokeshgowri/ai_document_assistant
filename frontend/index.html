@@ -12,19 +12,21 @@
 
 <body>
 
-    <!-- ============================= -->
-    <!-- HEADER -->
-    <!-- ============================= -->
+    <!-- Header -->
 
     <header class="header">
 
         <div class="logo-section">
-            <div class="logo">AI</div>
+
+            <div class="logo">
+                AI
+            </div>
 
             <div>
                 <h1>Document Q&A Assistant</h1>
                 <p>Ask questions from your documents</p>
             </div>
+
         </div>
 
         <div class="system-status">
@@ -35,93 +37,134 @@
     </header>
 
 
-    <!-- ============================= -->
-    <!-- MAIN APPLICATION -->
-    <!-- ============================= -->
+    <!-- Main Application -->
 
     <main class="app-container">
 
 
-        <!-- ============================= -->
-        <!-- SIDEBAR -->
-        <!-- ============================= -->
+        <!-- Sidebar -->
 
         <aside class="sidebar">
 
-            <h2>Documents</h2>
+            <!-- Conversations -->
 
-            <div class="upload-box">
+            <div class="conversation-section">
 
-                <label for="documentInput" class="upload-label">
-                    Choose Document
-                </label>
+                <div class="sidebar-section-header">
 
-                <input
-                    type="file"
-                    id="documentInput"
-                    accept=".pdf,.docx,.txt"
+                    <h2>Conversations</h2>
+
+                    <button
+                        id="newConversationButton"
+                        class="new-chat-button"
+                        type="button"
+                        title="New conversation"
+                    >
+                        +
+                    </button>
+
+                </div>
+
+                <div
+                    id="conversationList"
+                    class="conversation-list"
+                >
+                    <p class="empty-conversations">
+                        No conversations yet.
+                    </p>
+                </div>
+
+            </div>
+
+
+            <!-- Documents -->
+
+            <div class="document-section">
+
+                <h2>Documents</h2>
+
+                <div class="upload-box">
+
+                    <label
+                        for="documentInput"
+                        class="upload-label"
+                    >
+                        Choose Document
+                    </label>
+
+                    <input
+                        type="file"
+                        id="documentInput"
+                        accept=".pdf,.docx,.txt"
+                    >
+
+                    <div
+                        id="selectedFile"
+                        class="selected-file hidden"
+                    >
+
+                        <span>📄</span>
+
+                        <span id="fileName">
+                            No file selected
+                        </span>
+
+                    </div>
+
+                </div>
+
+
+                <button
+                    id="indexButton"
+                    type="button"
+                    class="primary-button"
+                >
+                    Index Documents
+                </button>
+
+
+                <div
+                    id="indexStatus"
+                    class="index-status"
                 >
 
-                <div id="selectedFile" class="selected-file hidden">
+                    <span class="status-dot"></span>
 
-                    <span>📄</span>
-
-                    <span id="fileName">
-                        No file selected
-                    </span>
-
-                </div>
-
-            </div>
-
-
-            <button
-                id="indexButton"
-                type="button"
-                class="primary-button"
-            >
-                Index Documents
-            </button>
-
-
-            <div id="indexStatus" class="index-status">
-
-                <span class="status-dot"></span>
-
-                <div>
-                    <strong>Ready</strong>
-                    <p>Documents can be indexed</p>
-                </div>
-
-            </div>
-
-
-            <!-- Document Statistics -->
-
-            <div class="statistics">
-
-                <div class="stat-card">
-
-                    <strong id="documentCount">
-                        0
-                    </strong>
-
-                    <span>
-                        Documents
-                    </span>
+                    <div>
+                        <strong>Ready</strong>
+                        <p>Documents can be indexed</p>
+                    </div>
 
                 </div>
 
 
-                <div class="stat-card">
+                <!-- Document Statistics -->
 
-                    <strong id="chunkCount">
-                        0
-                    </strong>
+                <div class="statistics">
 
-                    <span>
-                        Chunks
-                    </span>
+                    <div class="stat-card">
+
+                        <strong id="documentCount">
+                            0
+                        </strong>
+
+                        <span>
+                            Documents
+                        </span>
+
+                    </div>
+
+                    <div class="stat-card">
+
+                        <strong id="chunkCount">
+                            0
+                        </strong>
+
+                        <span>
+                            Chunks
+                        </span>
+
+                    </div>
 
                 </div>
 
@@ -130,36 +173,33 @@
         </aside>
 
 
-        <!-- ============================= -->
-        <!-- CHAT SECTION -->
-        <!-- ============================= -->
+        <!-- Chat -->
 
         <section class="chat-section">
 
             <div class="chat-header">
 
                 <div>
-                    <h2>Ask a Question</h2>
+
+                    <h2 id="chatTitle">
+                        New Conversation
+                    </h2>
 
                     <p>
                         Ask questions based on your indexed documents.
                     </p>
-                </div>
 
-                <button
-                    id="clearChatButton"
-                    type="button"
-                    class="secondary-button"
-                >
-                    Clear Chat
-                </button>
+                </div>
 
             </div>
 
 
             <!-- Chat Messages -->
 
-            <div id="chatMessages" class="chat-messages">
+            <div
+                id="chatMessages"
+                class="chat-messages"
+            >
 
                 <div class="welcome-message">
 
@@ -235,8 +275,6 @@
 
     </main>
 
-
-    <!-- JavaScript -->
 
     <script src="js/app.js"></script>
 

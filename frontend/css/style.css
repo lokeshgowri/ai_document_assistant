@@ -124,6 +124,126 @@ body {
 
 
 /* ========================================
+   CONVERSATIONS
+======================================== */
+
+.sidebar {
+    overflow-y: auto;
+}
+
+.sidebar-section-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 12px;
+}
+
+.sidebar-section-header h2 {
+    margin-bottom: 0;
+}
+
+.new-chat-button {
+    width: 30px;
+    height: 30px;
+
+    border: 1px solid #d1d5db;
+    border-radius: 7px;
+
+    background: white;
+    color: #374151;
+
+    font-size: 20px;
+    line-height: 1;
+
+    cursor: pointer;
+}
+
+.new-chat-button:hover {
+    background: #f3f4f6;
+}
+
+.conversation-list {
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+
+    margin-bottom: 28px;
+}
+
+.conversation-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+
+    width: 100%;
+    padding: 9px 10px;
+
+    border: none;
+    border-radius: 7px;
+
+    background: transparent;
+
+    color: #374151;
+
+    text-align: left;
+    font-size: 13px;
+
+    cursor: pointer;
+}
+
+.conversation-item:hover {
+    background: #f3f4f6;
+}
+
+.conversation-item.active {
+    background: #f1f5f9;
+    font-weight: 600;
+}
+
+.conversation-title {
+    flex: 1;
+
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.delete-conversation-button {
+    border: none;
+    background: transparent;
+
+    color: #9ca3af;
+
+    font-size: 14px;
+
+    cursor: pointer;
+
+    opacity: 0;
+}
+
+.conversation-item:hover .delete-conversation-button {
+    opacity: 1;
+}
+
+.delete-conversation-button:hover {
+    color: #ef4444;
+}
+
+.empty-conversations {
+    padding: 8px 4px;
+
+    color: #9ca3af;
+
+    font-size: 12px;
+}
+
+.document-section {
+    border-top: 1px solid #e5e7eb;
+    padding-top: 24px;
+}
+
+
+/* ========================================
    UPLOAD BOX
 ======================================== */
 

@@ -18,7 +18,6 @@ class EmbeddingService:
         self,
         model: str = "gemini-embedding-2"
     ):
-
         self.model = model
 
         api_key = os.getenv("GEMINI_API_KEY")
@@ -47,7 +46,6 @@ class EmbeddingService:
             )
 
         try:
-
             # Gemini Embedding 2 uses task instructions
             # directly in the input text.
             query_text = (
@@ -73,7 +71,6 @@ class EmbeddingService:
             return response.embeddings[0].values
 
         except APIError as exc:
-
             logger.exception(
                 "Gemini query embedding API request failed."
             )
@@ -84,7 +81,6 @@ class EmbeddingService:
             ) from exc
 
         except Exception as exc:
-
             logger.exception(
                 "Failed to generate query embedding."
             )
@@ -108,7 +104,6 @@ class EmbeddingService:
             )
 
         try:
-
             contents = []
 
             for text in texts:
@@ -136,29 +131,56 @@ class EmbeddingService:
                     "No valid texts were provided."
                 )
 
-            response = self.client.models.embed_content(
-                model=self.model,
-                contents=contents,
-                config=types.EmbedContentConfig(
-                    output_dimensionality=768
-                )
-            )
+            # Gemini allows a maximum of 100 requests
+            # in a single embedding batch.
+            batch_size = 50
 
-            embeddings = [
-                embedding.values
-                for embedding in response.embeddings
-            ]
+            embeddings = []
 
-            if len(embeddings) != len(contents):
-                raise RuntimeError(
-                    "Gemini returned an unexpected number "
-                    "of embeddings."
+            for start in range(
+                0,
+                len(contents),
+                batch_size
+            ):
+                batch = contents[
+                    start:start + batch_size
+                ]
+
+                logger.info(
+                    "Generating embeddings for batch "
+                    "%d-%d of %d",
+                    start + 1,
+                    min(
+                        start + batch_size,
+                        len(contents)
+                    ),
+                    len(contents)
                 )
+
+                response = self.client.models.embed_content(
+                    model=self.model,
+                    contents=batch,
+                    config=types.EmbedContentConfig(
+                        output_dimensionality=768
+                    )
+                )
+
+                batch_embeddings = [
+                    embedding.values
+                    for embedding in response.embeddings
+                ]
+
+                if len(batch_embeddings) != len(batch):
+                    raise RuntimeError(
+                        "Gemini returned an unexpected number "
+                        "of embeddings."
+                    )
+
+                embeddings.extend(batch_embeddings)
 
             return embeddings
 
         except APIError as exc:
-
             logger.exception(
                 "Gemini batch embedding API request failed."
             )
@@ -172,7 +194,6 @@ class EmbeddingService:
             raise
 
         except Exception as exc:
-
             logger.exception(
                 "Failed to generate batch embeddings."
             )
