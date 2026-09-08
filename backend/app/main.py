@@ -1,12 +1,18 @@
-from pathlib import Path
+from contextlib import asynccontextmanager
 
-import faiss
-from fastapi import FastAPI, HTTPException, UploadFile, File, Depends
+from fastapi import (
+    FastAPI,
+    HTTPException,
+    UploadFile,
+    File,
+    Depends
+)
 from fastapi.middleware.cors import CORSMiddleware
 
 from sqlalchemy.orm import Session
 
 from app.db.database import get_db
+
 from app.models.schemas import (
     AskRequest,
     AskResponse,
@@ -14,29 +20,99 @@ from app.models.schemas import (
     ConversationResponse,
     ConversationDetailResponse
 )
+
 from app.services.conversation_service import ConversationService
 from app.services.embeddings import EmbeddingService
 from app.services.indexing_service import IndexingService
 from app.services.rag_service import RAGService
-from app.services.vector_store import VectorStore
+from app.services.blob_service import BlobStorageService
 
+
+# ---------------------------------------------------------
+# GLOBAL SERVICES
+# ---------------------------------------------------------
+
+embedding_service = EmbeddingService()
+
+indexing_service = IndexingService()
+
+blob_service = BlobStorageService()
+
+rag_service = None
+
+
+# ---------------------------------------------------------
+# APPLICATION STARTUP / SHUTDOWN
+# ---------------------------------------------------------
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+
+    global rag_service
+
+    try:
+
+        saved_vector_store = (
+            await indexing_service.load_persisted_index()
+        )
+
+        if saved_vector_store is not None:
+
+            rag_service = RAGService(
+                vector_store=saved_vector_store,
+                embedding_service=(
+                    indexing_service.embedding_service
+                )
+            )
+
+            print(
+                "Persisted FAISS index loaded from Blob."
+            )
+
+        else:
+
+            print(
+                "No persisted FAISS index found in Blob."
+            )
+
+    except Exception as exc:
+
+        print(
+            f"STARTUP INDEX LOAD ERROR: {exc}"
+        )
+
+        rag_service = None
+
+    yield
+
+
+# ---------------------------------------------------------
+# FASTAPI APPLICATION
+# ---------------------------------------------------------
 
 app = FastAPI(
     title="AI Document Q&A Assistant",
     description=(
         "A Retrieval-Augmented Generation (RAG) API "
         "for answering questions from indexed documents "
-        "using semantic search, keyword search, reranking, "
+        "using semantic search, keyword search, "
         "and a grounded language model."
     ),
-    version="1.0.0"
+    version="1.0.0",
+    lifespan=lifespan
 )
+
+
+# ---------------------------------------------------------
+# CORS
+# ---------------------------------------------------------
+
 app.add_middleware(
     CORSMiddleware,
     allow_origins=[
         "http://127.0.0.1:5500",
         "http://localhost:5500",
-        "https://lokeshgowri.github.io",
+        " https://lokeshgowri.github.io/ai-document-qa-assistant_fe/",
     ],
     allow_credentials=True,
     allow_methods=["*"],
@@ -44,38 +120,9 @@ app.add_middleware(
 )
 
 
-embedding_service = EmbeddingService()
-indexing_service = IndexingService()
-rag_service = None
-
-
-index_path = Path("data/index.faiss")
-metadata_path = Path("data/metadata.json")
-
-
-if index_path.exists() and metadata_path.exists():
-
-    try:
-        saved_index = faiss.read_index(
-            str(index_path)
-        )
-
-        dimension = saved_index.d
-
-        vector_store = VectorStore(dimension)
-
-        vector_store.load(
-            str(index_path)
-        )
-
-        rag_service = RAGService(
-            vector_store=vector_store,
-            embedding_service=embedding_service
-        )
-
-    except Exception:
-        rag_service = None
-
+# ---------------------------------------------------------
+# ROOT
+# ---------------------------------------------------------
 
 @app.get(
     "/",
@@ -85,9 +132,15 @@ if index_path.exists() and metadata_path.exists():
 def root():
 
     return {
-        "message": "AI Document Q&A Assistant is running."
+        "message": (
+            "AI Document Q&A Assistant is running."
+        )
     }
 
+
+# ---------------------------------------------------------
+# HEALTH CHECK
+# ---------------------------------------------------------
 
 @app.get(
     "/health",
@@ -101,6 +154,10 @@ def health_check():
     }
 
 
+# ---------------------------------------------------------
+# ASK QUESTION
+# ---------------------------------------------------------
+
 @app.post(
     "/ask",
     response_model=AskResponse,
@@ -112,7 +169,14 @@ def ask_question(
     db: Session = Depends(get_db)
 ):
 
+    global rag_service
+
+    # -----------------------------------------------------
+    # Check whether index is available
+    # -----------------------------------------------------
+
     if rag_service is None:
+
         raise HTTPException(
             status_code=400,
             detail=(
@@ -123,17 +187,20 @@ def ask_question(
 
     conversation_service = ConversationService(db)
 
-    # ---------------------------------------------------------
-    # 1. Validate conversation if conversation_id is provided
-    # ---------------------------------------------------------
+    # -----------------------------------------------------
+    # 1. Validate conversation
+    # -----------------------------------------------------
 
     if request.conversation_id is not None:
 
-        conversation = conversation_service.get_conversation(
-            request.conversation_id
+        conversation = (
+            conversation_service.get_conversation(
+                request.conversation_id
+            )
         )
 
         if not conversation:
+
             raise HTTPException(
                 status_code=404,
                 detail="Conversation not found."
@@ -146,9 +213,9 @@ def ask_question(
             content=request.question
         )
 
-    # ---------------------------------------------------------
-    # 2. Run existing RAG pipeline
-    # ---------------------------------------------------------
+    # -----------------------------------------------------
+    # 2. Run RAG pipeline
+    # -----------------------------------------------------
 
     try:
 
@@ -173,9 +240,9 @@ def ask_question(
             detail="Failed to process the question."
         )
 
-    # ---------------------------------------------------------
+    # -----------------------------------------------------
     # 3. Save assistant response
-    # ---------------------------------------------------------
+    # -----------------------------------------------------
 
     if request.conversation_id is not None:
 
@@ -185,128 +252,143 @@ def ask_question(
             content=response["answer"]
         )
 
-    # ---------------------------------------------------------
-    # 4. Return normal RAG response
-    # ---------------------------------------------------------
+    # -----------------------------------------------------
+    # 4. Return RAG response
+    # -----------------------------------------------------
 
     return response
 
+
+# ---------------------------------------------------------
+# INDEX DOCUMENTS
+# ---------------------------------------------------------
 
 @app.post(
     "/index",
     tags=["Documents"],
     summary="Index documents"
 )
-def index_documents():
+async def index_documents():
 
     global rag_service
 
     try:
 
-        result = indexing_service.build_index()
+        result = (
+            await indexing_service.build_index()
+        )
 
         rag_service = RAGService(
-            vector_store=indexing_service.vector_store,
-            embedding_service=indexing_service.embedding_service
+            vector_store=(
+                indexing_service.vector_store
+            ),
+            embedding_service=(
+                indexing_service.embedding_service
+            )
         )
 
         return {
+
             "status": "success",
-            "message": "Documents indexed successfully.",
+
+            "message": (
+                "Documents indexed successfully."
+            ),
+
             "details": result
+
         }
 
     except Exception as exc:
-        print(f"INDEX ERROR: {exc}")
+
+        print(
+            f"INDEX ERROR: {exc}"
+        )
 
         raise HTTPException(
             status_code=500,
             detail="Failed to index documents."
         )
 
+
+# ---------------------------------------------------------
+# INDEX STATUS
+# ---------------------------------------------------------
+
 @app.get(
     "/index/status",
     tags=["Documents"],
     summary="Get current index status"
 )
-def get_index_status():
+async def get_index_status():
 
-    return indexing_service.get_index_status()
+    return (
+        await indexing_service.get_index_status()
+    )
 
+
+# ---------------------------------------------------------
+# UPLOAD DOCUMENT
+# ---------------------------------------------------------
 
 @app.post(
     "/upload",
     tags=["Documents"],
     summary="Upload a document"
 )
-async def upload_document(file: UploadFile = File(...)):
-
-    allowed_extensions = {
-        ".pdf",
-        ".docx",
-        ".txt"
-    }
-
-    filename = file.filename
-
-    if not filename:
-        raise HTTPException(
-            status_code=400,
-            detail="No file selected."
-        )
-
-    # Get file extension
-    extension = "." + filename.split(".")[-1].lower()
-
-    # Validate extension
-    if extension not in allowed_extensions:
-
-        raise HTTPException(
-            status_code=400,
-            detail=(
-                "Unsupported file type. "
-                "Only PDF, DOCX, and TXT files are allowed."
-            )
-        )
+async def upload_document(
+    file: UploadFile = File(...)
+):
 
     try:
 
-        # Create data directory if it doesn't exist
-        data_directory = "data"
-
-        import os
-
-        os.makedirs(
-            data_directory,
-            exist_ok=True
-        )
-
-        # Create file path
-        file_path = os.path.join(
-            data_directory,
-            filename
-        )
-
         # Read uploaded file
-        contents = await file.read()
+        file_bytes = await file.read()
 
-        # Save file
-        with open(file_path, "wb") as destination:
+        # Preserve original filename
+        pathname = (
+            f"documents/{file.filename}"
+        )
 
-            destination.write(contents)
+        # Upload document to Vercel Blob
+        blob = await blob_service.upload_file(
+            pathname=pathname,
+            data=file_bytes,
+            content_type=file.content_type,
+            overwrite=True
+        )
 
         return {
+
             "status": "success",
-            "message": "Document uploaded successfully.",
-            "filename": filename
+
+            "message": (
+                "Document uploaded successfully."
+            ),
+
+            "filename": file.filename,
+
+            "pathname": blob.pathname,
+
+            "url": blob.url
+
         }
 
-    except Exception:
+    except Exception as exc:
+
+        print(
+            f"UPLOAD ERROR: {exc}"
+        )
 
         raise HTTPException(
             status_code=500,
             detail="Failed to upload document."
         )
+
+
+# ---------------------------------------------------------
+# CREATE CONVERSATION
+# ---------------------------------------------------------
 
 @app.post(
     "/conversations",
@@ -327,6 +409,11 @@ def create_conversation(
 
     return conversation
 
+
+# ---------------------------------------------------------
+# GET ALL CONVERSATIONS
+# ---------------------------------------------------------
+
 @app.get(
     "/conversations",
     response_model=list[ConversationResponse],
@@ -341,6 +428,11 @@ def get_conversations(
 
     return service.get_conversations()
 
+
+# ---------------------------------------------------------
+# GET SINGLE CONVERSATION
+# ---------------------------------------------------------
+
 @app.get(
     "/conversations/{conversation_id}",
     response_model=ConversationDetailResponse,
@@ -354,17 +446,25 @@ def get_conversation(
 
     service = ConversationService(db)
 
-    conversation = service.get_conversation(
-        conversation_id
+    conversation = (
+        service.get_conversation(
+            conversation_id
+        )
     )
 
     if not conversation:
+
         raise HTTPException(
             status_code=404,
             detail="Conversation not found."
         )
 
     return conversation
+
+
+# ---------------------------------------------------------
+# DELETE CONVERSATION
+# ---------------------------------------------------------
 
 @app.delete(
     "/conversations/{conversation_id}",
@@ -378,24 +478,28 @@ def delete_conversation(
 
     service = ConversationService(db)
 
-    deleted = service.soft_delete_conversation(
-        conversation_id
+    deleted = (
+        service.soft_delete_conversation(
+            conversation_id
+        )
     )
 
     if not deleted:
+
         raise HTTPException(
             status_code=404,
             detail="Conversation not found."
         )
 
     return {
+
         "status": "success",
-        "message": "Conversation deleted successfully."
+
+        "message": (
+            "Conversation deleted successfully."
+        )
+
     }
-
-
-
-
 
 
 # ---------------------------------------------------------
@@ -416,29 +520,39 @@ def delete_conversation(
 #
 # Example future endpoint:
 #
-""" @app.delete(
-     "/admin/conversations/{conversation_id}/permanent",
-     tags=["Admin"],
-     summary="Permanently delete a conversation"
- )
- def permanently_delete_conversation(
-     conversation_id: int,
-     db: Session = Depends(get_db)
- ):
+"""
+@app.delete(
+    "/admin/conversations/{conversation_id}/permanent",
+    tags=["Admin"],
+    summary="Permanently delete a conversation"
+)
+def permanently_delete_conversation(
+    conversation_id: int,
+    db: Session = Depends(get_db)
+):
 
-     service = ConversationService(db)
+    service = ConversationService(db)
 
-     deleted = service.permanently_delete_conversation(
-         conversation_id
-     )
+    deleted = (
+        service.permanently_delete_conversation(
+            conversation_id
+        )
+    )
 
-     if not deleted:
-         raise HTTPException(
-             status_code=404,
-             detail="Conversation not found."
-         )
+    if not deleted:
 
-     return {
-         "status": "success",
-         "message": "Conversation permanently deleted."
-     } """
+        raise HTTPException(
+            status_code=404,
+            detail="Conversation not found."
+        )
+
+    return {
+
+        "status": "success",
+
+        "message": (
+            "Conversation permanently deleted."
+        )
+
+    }
+"""
