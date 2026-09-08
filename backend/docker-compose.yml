@@ -1,0 +1,7 @@
+services:
+  document-qa-backend:
+    build: .
+    container_name: document-qa-backend-container
+    ports:
+      - "7860:7860"
+    restart: unless-stopped

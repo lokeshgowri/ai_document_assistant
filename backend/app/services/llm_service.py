@@ -1,15 +1,35 @@
 import logging
+import os
 
-import ollama
+from dotenv import load_dotenv
+from google import genai
+from google.genai.errors import APIError
 
+
+load_dotenv()
 
 logger = logging.getLogger(__name__)
 
 
 class LLMService:
 
-    def __init__(self, model: str = "llama3.2"):
+    def __init__(
+        self,
+        model: str = "gemini-3.6-flash"
+    ):
+
         self.model = model
+
+        api_key = os.getenv("GEMINI_API_KEY")
+
+        if not api_key:
+            raise RuntimeError(
+                "GEMINI_API_KEY is not configured in the environment."
+            )
+
+        self.client = genai.Client(
+            api_key=api_key
+        )
 
     def generate_answer(
         self,
@@ -20,25 +40,37 @@ class LLMService:
         prompt = f"""
 You are a strict document question-answering assistant.
 
-Answer the user's question using ONLY the information provided in the
-document context.
+Your job is to answer the user's question using ONLY information
+contained in the provided document context.
 
 IMPORTANT RULES:
 
-1. Answer ONLY what the user asked.
-2. Do NOT provide a list of all related information unless the user
-   explicitly asks for a list.
-3. Identify the specific information in the context that answers the
-   question.
-4. Do not use outside knowledge.
-5. Do not guess or make assumptions.
-6. Do not convert, calculate, or reinterpret values unless the context
-   explicitly provides that information.
-7. Preserve the units exactly as written in the context.
-8. If the context does not contain enough information to answer the
-   specific question, say:
-   "I could not find the answer in the provided documents."
-9. Give a short, direct answer and be brief if the user asks for it.
+1. Answer ONLY the specific question asked by the user.
+
+2. Do NOT provide additional related information unless the user
+   explicitly asks for it.
+
+3. Use ONLY facts explicitly stated in the document context.
+
+4. Do NOT use outside knowledge.
+
+5. Do NOT guess, assume, or infer information that is not explicitly
+   supported by the document context.
+
+6. Do NOT calculate, convert, or reinterpret values unless the
+   document explicitly provides the required information.
+
+7. Preserve numbers and units exactly as they appear in the document.
+
+8. If the document context does not contain enough information to
+   answer the question, respond EXACTLY with:
+
+"I could not find the answer in the provided documents."
+
+9. If the retrieved context is unrelated to the question, respond
+   with the same no-answer message.
+
+10. Keep the answer short and direct.
 
 DOCUMENT CONTEXT:
 -----------------
@@ -54,22 +86,40 @@ ANSWER:
         try:
 
             logger.info(
-                "Sending question to LLM: %s",
-                question
+                "Sending question to Gemini model: %s",
+                self.model
             )
 
-            response = ollama.generate(
+            response = self.client.models.generate_content(
                 model=self.model,
-                prompt=prompt
+                contents=prompt
             )
 
-            answer = response["response"].strip()
+            if not response.text:
+                raise RuntimeError(
+                    "Gemini returned an empty response."
+                )
+
+            answer = response.text.strip()
 
             logger.info(
-                "LLM response generated successfully."
+                "Gemini response generated successfully."
             )
 
             return answer
+
+        except APIError as exc:
+
+            logger.exception(
+                "Gemini API request failed."
+            )
+
+            raise RuntimeError(
+                "Failed to generate an answer using Gemini."
+            ) from exc
+
+        except RuntimeError:
+            raise
 
         except Exception as exc:
 
@@ -78,5 +128,6 @@ ANSWER:
             )
 
             raise RuntimeError(
-                "Failed to generate an answer using the LLM."
+                "Failed to process the LLM request."
             ) from exc
+
