@@ -1,7 +1,6 @@
 from app.services.llm_service import LLMService
 from app.services.vector_store import VectorStore
 from app.services.keyword_search import KeywordSearch
-from app.services.reranker import Reranker
 from app.services.query_processor import QueryProcessor
 
 
@@ -13,7 +12,6 @@ class RAGService:
         self.embedding_service = embedding_service
         self.llm_service = LLMService()
         self.query_processor = QueryProcessor()
-        self.reranker = Reranker()
 
         self.keyword_search = KeywordSearch(
             getattr(self.vector_store, "metadata", [])
@@ -178,12 +176,7 @@ class RAGService:
                     "sources": []
                 }
 
-            # Rerank combined candidates
-            results = self.reranker.rerank(
-                question,
-                combined_results,
-                top_k=top_k
-            )
+            results = combined_results[:top_k]
 
             # No results after reranking
             if not results:
