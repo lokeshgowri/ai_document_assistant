@@ -489,6 +489,7 @@ async function askQuestion() {
     if (!question) {
         return;
     }
+    let loadingMessage = null;
 
     try {
         // Create conversation automatically
@@ -530,7 +531,7 @@ async function askQuestion() {
         askButton.textContent =
             "Thinking...";
 
-        const loadingMessage =
+        loadingMessage =
             addMessage(
                 "Thinking...",
                 "assistant"
@@ -573,11 +574,21 @@ async function askQuestion() {
         await refreshConversationList();
 
     } catch (error) {
-        updateAssistantMessage(
-            loadingMessage,
-            `Unable to process the question: ${error.message}`
-        );
+
+        if (loadingMessage) {
+            updateAssistantMessage(
+                loadingMessage,
+                `Unable to process the question: ${error.message}`
+            );
+        } else {
+            console.error(
+                "Question failed:",
+                error
+            );
+        }
+
     } finally {
+
         askButton.disabled = false;
         askButton.textContent = "Ask";
     }

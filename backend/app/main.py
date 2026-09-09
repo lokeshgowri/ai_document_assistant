@@ -28,9 +28,9 @@ from app.services.rag_service import RAGService
 from app.services.blob_service import BlobStorageService
 
 
-# ---------------------------------------------------------
+# =========================================================
 # GLOBAL SERVICES
-# ---------------------------------------------------------
+# =========================================================
 
 embedding_service = EmbeddingService()
 
@@ -41,9 +41,9 @@ blob_service = BlobStorageService()
 rag_service = None
 
 
-# ---------------------------------------------------------
+# =========================================================
 # APPLICATION STARTUP / SHUTDOWN
-# ---------------------------------------------------------
+# =========================================================
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -86,9 +86,9 @@ async def lifespan(app: FastAPI):
     yield
 
 
-# ---------------------------------------------------------
+# =========================================================
 # FASTAPI APPLICATION
-# ---------------------------------------------------------
+# =========================================================
 
 app = FastAPI(
     title="AI Document Q&A Assistant",
@@ -103,26 +103,30 @@ app = FastAPI(
 )
 
 
-# ---------------------------------------------------------
+# =========================================================
 # CORS
-# ---------------------------------------------------------
+# =========================================================
 
 app.add_middleware(
     CORSMiddleware,
+
     allow_origins=[
         "http://127.0.0.1:5500",
         "http://localhost:5500",
         "https://lokeshgowri.github.io",
     ],
+
     allow_credentials=True,
+
     allow_methods=["*"],
-    allow_headers=["*"],
+
+    allow_headers=["*"]
 )
 
 
-# ---------------------------------------------------------
+# =========================================================
 # ROOT
-# ---------------------------------------------------------
+# =========================================================
 
 @app.get(
     "/",
@@ -138,9 +142,9 @@ def root():
     }
 
 
-# ---------------------------------------------------------
+# =========================================================
 # HEALTH CHECK
-# ---------------------------------------------------------
+# =========================================================
 
 @app.get(
     "/health",
@@ -154,9 +158,9 @@ def health_check():
     }
 
 
-# ---------------------------------------------------------
+# =========================================================
 # ASK QUESTION
-# ---------------------------------------------------------
+# =========================================================
 
 @app.post(
     "/ask",
@@ -164,7 +168,7 @@ def health_check():
     tags=["Question Answering"],
     summary="Ask a question about the documents"
 )
-def ask_question(
+async def ask_question(
     request: AskRequest,
     db: Session = Depends(get_db)
 ):
@@ -194,7 +198,7 @@ def ask_question(
     if request.conversation_id is not None:
 
         conversation = (
-            conversation_service.get_conversation(
+            await conversation_service.get_conversation(
                 request.conversation_id
             )
         )
@@ -206,8 +210,11 @@ def ask_question(
                 detail="Conversation not found."
             )
 
+        # -------------------------------------------------
         # Save user's question
-        conversation_service.add_message(
+        # -------------------------------------------------
+
+        await conversation_service.add_message(
             conversation_id=request.conversation_id,
             role="user",
             content=request.question
@@ -246,7 +253,7 @@ def ask_question(
 
     if request.conversation_id is not None:
 
-        conversation_service.add_message(
+        await conversation_service.add_message(
             conversation_id=request.conversation_id,
             role="assistant",
             content=response["answer"]
@@ -259,9 +266,9 @@ def ask_question(
     return response
 
 
-# ---------------------------------------------------------
+# =========================================================
 # INDEX DOCUMENTS
-# ---------------------------------------------------------
+# =========================================================
 
 @app.post(
     "/index",
@@ -282,13 +289,13 @@ async def index_documents():
             vector_store=(
                 indexing_service.vector_store
             ),
+
             embedding_service=(
                 indexing_service.embedding_service
             )
         )
 
         return {
-
             "status": "success",
 
             "message": (
@@ -296,7 +303,6 @@ async def index_documents():
             ),
 
             "details": result
-
         }
 
     except Exception as exc:
@@ -311,9 +317,9 @@ async def index_documents():
         )
 
 
-# ---------------------------------------------------------
+# =========================================================
 # INDEX STATUS
-# ---------------------------------------------------------
+# =========================================================
 
 @app.get(
     "/index/status",
@@ -327,9 +333,9 @@ async def get_index_status():
     )
 
 
-# ---------------------------------------------------------
+# =========================================================
 # UPLOAD DOCUMENT
-# ---------------------------------------------------------
+# =========================================================
 
 @app.post(
     "/upload",
@@ -342,15 +348,24 @@ async def upload_document(
 
     try:
 
+        # -------------------------------------------------
         # Read uploaded file
+        # -------------------------------------------------
+
         file_bytes = await file.read()
 
+        # -------------------------------------------------
         # Preserve original filename
+        # -------------------------------------------------
+
         pathname = (
             f"documents/{file.filename}"
         )
 
+        # -------------------------------------------------
         # Upload document to Vercel Blob
+        # -------------------------------------------------
+
         blob = await blob_service.upload_file(
             pathname=pathname,
             data=file_bytes,
@@ -371,7 +386,6 @@ async def upload_document(
             "pathname": blob.pathname,
 
             "url": blob.url
-
         }
 
     except Exception as exc:
@@ -386,9 +400,9 @@ async def upload_document(
         )
 
 
-# ---------------------------------------------------------
+# =========================================================
 # CREATE CONVERSATION
-# ---------------------------------------------------------
+# =========================================================
 
 @app.post(
     "/conversations",
@@ -396,23 +410,25 @@ async def upload_document(
     tags=["Conversations"],
     summary="Create a new conversation"
 )
-def create_conversation(
+async def create_conversation(
     request: ConversationCreate,
     db: Session = Depends(get_db)
 ):
 
     service = ConversationService(db)
 
-    conversation = service.create_conversation(
-        title=request.title
+    conversation = (
+        await service.create_conversation(
+            title=request.title
+        )
     )
 
     return conversation
 
 
-# ---------------------------------------------------------
+# =========================================================
 # GET ALL CONVERSATIONS
-# ---------------------------------------------------------
+# =========================================================
 
 @app.get(
     "/conversations",
@@ -420,18 +436,22 @@ def create_conversation(
     tags=["Conversations"],
     summary="Get all active conversations"
 )
-def get_conversations(
+async def get_conversations(
     db: Session = Depends(get_db)
 ):
 
     service = ConversationService(db)
 
-    return service.get_conversations()
+    conversations = (
+        await service.get_conversations()
+    )
+
+    return conversations
 
 
-# ---------------------------------------------------------
+# =========================================================
 # GET SINGLE CONVERSATION
-# ---------------------------------------------------------
+# =========================================================
 
 @app.get(
     "/conversations/{conversation_id}",
@@ -439,7 +459,7 @@ def get_conversations(
     tags=["Conversations"],
     summary="Get a conversation with its messages"
 )
-def get_conversation(
+async def get_conversation(
     conversation_id: int,
     db: Session = Depends(get_db)
 ):
@@ -447,7 +467,7 @@ def get_conversation(
     service = ConversationService(db)
 
     conversation = (
-        service.get_conversation(
+        await service.get_conversation(
             conversation_id
         )
     )
@@ -462,16 +482,16 @@ def get_conversation(
     return conversation
 
 
-# ---------------------------------------------------------
+# =========================================================
 # DELETE CONVERSATION
-# ---------------------------------------------------------
+# =========================================================
 
 @app.delete(
     "/conversations/{conversation_id}",
     tags=["Conversations"],
     summary="Soft delete a conversation"
 )
-def delete_conversation(
+async def delete_conversation(
     conversation_id: int,
     db: Session = Depends(get_db)
 ):
@@ -479,7 +499,7 @@ def delete_conversation(
     service = ConversationService(db)
 
     deleted = (
-        service.soft_delete_conversation(
+        await service.soft_delete_conversation(
             conversation_id
         )
     )
@@ -498,35 +518,36 @@ def delete_conversation(
         "message": (
             "Conversation deleted successfully."
         )
-
     }
 
 
-# ---------------------------------------------------------
+# =========================================================
 # PERMANENT DELETE — FUTURE ADMIN/BACKEND OPERATION
-# ---------------------------------------------------------
+# =========================================================
+
 #
 # This endpoint is intentionally disabled for normal users.
 #
 # If we later need an admin-only permanent deletion API,
 # it can call:
 #
-# service.permanently_delete_conversation(
+# await service.permanently_delete_conversation(
 #     conversation_id
 # )
 #
 # This will permanently remove the conversation and its
-# associated messages from the database.
+# associated messages.
 #
 # Example future endpoint:
 #
+
 """
 @app.delete(
     "/admin/conversations/{conversation_id}/permanent",
     tags=["Admin"],
     summary="Permanently delete a conversation"
 )
-def permanently_delete_conversation(
+async def permanently_delete_conversation(
     conversation_id: int,
     db: Session = Depends(get_db)
 ):
@@ -534,7 +555,7 @@ def permanently_delete_conversation(
     service = ConversationService(db)
 
     deleted = (
-        service.permanently_delete_conversation(
+        await service.permanently_delete_conversation(
             conversation_id
         )
     )
@@ -553,6 +574,5 @@ def permanently_delete_conversation(
         "message": (
             "Conversation permanently deleted."
         )
-
     }
 """
