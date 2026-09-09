@@ -1,9 +1,8 @@
-=======================
-DRUG AND ALCOHOL POLICY
-=======================
 
-Company: [Company Name]
-Effective Date: [Effective Date]
+DRUG AND ALCOHOL POLICY
+
+Company: Hilip Tech
+Effective Date: 9/9/2026
 
 PURPOSE
 -------
@@ -23,18 +22,10 @@ SUPPORT
 Employees struggling with substance use are encouraged to seek confidential support through the Employee Assistance Program or HR.
 
 
-
-Acknowledgement: By continuing employment, employees acknowledge
-that they have read, understood, and agree to comply with this policy.
-
-================================================================================
-
-===========================
 EMERGENCY PROCEDURES POLICY
-===========================
 
-Company: [Company Name]
-Effective Date: [Effective Date]
+Company: Hilip Tech
+Effective Date: 9/9/2026
 
 PURPOSE
 -------

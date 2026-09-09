@@ -1,9 +1,7 @@
-========================================
 ANTI-HARASSMENT AND ANTI-BULLYING POLICY
-========================================
 
-Company: [Company Name]
-Effective Date: [Effective Date]
+Company: Hilip Tech
+Effective Date: 9/9/2026
 
 PURPOSE
 -------
@@ -29,19 +27,11 @@ CONSEQUENCES
 ------------
 Substantiated violations of this policy will result in disciplinary action, up to and including termination.
 
-
-
-Acknowledgement: By continuing employment, employees acknowledge
-that they have read, understood, and agree to comply with this policy.
-
-================================================================================
-
-=================================
 ATTENDANCE AND PUNCTUALITY POLICY
-=================================
 
-Company: [Company Name]
-Effective Date: [Effective Date]
+
+Company: Hilip Tech
+Effective Date: 9/9/2026
 
 PURPOSE
 -------
