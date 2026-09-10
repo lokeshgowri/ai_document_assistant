@@ -258,55 +258,120 @@ class EmbeddingService:
     ) -> list[list[float]]:
 
         if not texts:
-
             return []
 
         all_embeddings = []
+        total_texts = len(texts)
 
-        total_texts = len(
-            texts
-        )
+        # Keep this conservative.
+        # If the SDK supports multiple contents correctly,
+        # this reduces the number of API requests significantly.
+        batch_size = 10
 
-        print(
-            f"Generating embeddings for "
-            f"{total_texts} texts..."
-        )
+        print("Embedding started")
+        print(f"Total texts: {total_texts}")
+        print(f"Batch size: {batch_size}")
 
-        # IMPORTANT:
-        #
-        # We intentionally process ONE text
-        # at a time.
-        #
-        # Our installed Gemini SDK returned
-        # only ONE embedding when a list of
-        # multiple strings was passed through
-        # `contents`.
-        #
-        # Therefore we use embed_text()
-        # for every individual chunk.
+        for start in range(0, total_texts, batch_size):
 
-        for index, text in enumerate(
-            texts
-        ):
+            batch = texts[start:start + batch_size]
+
+            batch_start = start + 1
+            batch_end = start + len(batch)
 
             print(
-                f"Embedding text "
-                f"{index + 1}/{total_texts}"
+                f"Embedding texts "
+                f"{batch_start}-{batch_end}/{total_texts}"
             )
 
-            embedding = (
-                self.embed_text(
-                    text
+            try:
+
+                response = self.client.models.embed_content(
+                    model=self.model,
+                    contents=batch,
+                    config=types.EmbedContentConfig(
+                        output_dimensionality=self.output_dimension
+                    )
                 )
-            )
 
-            all_embeddings.append(
-                embedding
-            )
+                # -------------------------------------------------
+                # Check whether Gemini returned one embedding
+                # for every input text.
+                # -------------------------------------------------
 
-        print(
-            "Embedding generation completed."
-        )
+                if (
+                    not response.embeddings
+                    or len(response.embeddings) != len(batch)
+                ):
+                    print(
+                        "Batch embedding response did not contain "
+                        "one embedding per text."
+                    )
+
+                    print(
+                        "Falling back to individual embedding requests "
+                        "for this batch..."
+                    )
+
+                    for text in batch:
+
+                        embedding = self.embed_text(text)
+
+                        all_embeddings.append(embedding)
+
+                    continue
+
+                # -------------------------------------------------
+                # Validate every embedding
+                # -------------------------------------------------
+
+                batch_embeddings = []
+
+                for embedding in response.embeddings:
+
+                    values = embedding.values
+
+                    if not values:
+                        raise RuntimeError(
+                            "Gemini returned an empty embedding."
+                        )
+
+                    if len(values) != self.output_dimension:
+                        raise RuntimeError(
+                            "Gemini returned an embedding "
+                            f"with dimension {len(values)} "
+                            f"instead of "
+                            f"{self.output_dimension}."
+                        )
+
+                    batch_embeddings.append(values)
+
+                all_embeddings.extend(batch_embeddings)
+
+            except APIError as exc:
+
+                if not self._is_retryable_error(exc):
+                    raise
+
+                print(
+                    "Gemini API temporary error while "
+                    "processing an embedding batch."
+                )
+
+                # Use the existing retry logic by falling back
+                # to individual requests.
+                print(
+                    "Falling back to individual embedding "
+                    "requests for this batch..."
+                )
+
+                for text in batch:
+
+                    embedding = self.embed_text(text)
+
+                    all_embeddings.append(embedding)
+
+        print("Embedding generation completed.")
 
         return all_embeddings
 

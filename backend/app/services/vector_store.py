@@ -27,7 +27,9 @@ class VectorStore:
         top_k: int = 3,
         source: str | None = None,
         section: str | None = None,
-        distance_threshold: float | None = None
+        distance_threshold: float | None = None,
+        conversation_id: int | None = None,
+        global_only: bool = False
     ):
 
         query_array = np.array(
@@ -35,7 +37,13 @@ class VectorStore:
             dtype="float32"
         )
 
-        if source or section or distance_threshold is not None:
+        if (
+            source
+            or section
+            or distance_threshold is not None
+            or conversation_id is not None
+            or global_only
+        ):
             search_k = self.index.ntotal
         else:
             search_k = top_k
@@ -63,6 +71,38 @@ class VectorStore:
 
             metadata = self.metadata[index]
 
+            # -------------------------------------------------
+            # Conversation-specific filtering
+            # -------------------------------------------------
+
+            if conversation_id is not None:
+
+                metadata_conversation_id = metadata.get(
+                    "conversation_id"
+                )
+
+                if (
+                    metadata_conversation_id
+                    != conversation_id
+                ):
+                    continue
+
+            # -------------------------------------------------
+            # Global document filtering
+            #
+            # Global documents have:
+            # conversation_id = None
+            # -------------------------------------------------
+
+            elif global_only:
+
+                if metadata.get("conversation_id") is not None:
+                    continue
+
+            # -------------------------------------------------
+            # Source filtering
+            # -------------------------------------------------
+
             if source:
 
                 metadata_source = metadata.get(
@@ -74,6 +114,10 @@ class VectorStore:
 
                 if source.lower() not in metadata_source.lower():
                     continue
+
+            # -------------------------------------------------
+            # Section filtering
+            # -------------------------------------------------
 
             if section:
 

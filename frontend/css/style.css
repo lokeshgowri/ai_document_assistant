@@ -8,6 +8,7 @@
     box-sizing: border-box;
 }
 
+
 body {
     font-family: Arial, Helvetica, sans-serif;
     background: #f5f7fb;
@@ -33,11 +34,13 @@ body {
     padding: 0 28px;
 }
 
+
 .logo-section {
     display: flex;
     align-items: center;
     gap: 14px;
 }
+
 
 .logo {
     width: 42px;
@@ -56,39 +59,17 @@ body {
     font-size: 15px;
 }
 
+
 .logo-section h1 {
     font-size: 19px;
     font-weight: 700;
 }
 
+
 .logo-section p {
     margin-top: 3px;
     font-size: 12px;
     color: #6b7280;
-}
-
-.system-status {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-
-    font-size: 13px;
-    color: #4b5563;
-}
-
-
-/* ========================================
-   STATUS DOT
-======================================== */
-
-.status-dot {
-    width: 8px;
-    height: 8px;
-
-    border-radius: 50%;
-    background: #22c55e;
-
-    display: inline-block;
 }
 
 
@@ -115,7 +96,10 @@ body {
     border-right: 1px solid #e5e7eb;
 
     padding: 28px 22px;
+
+    overflow-y: auto;
 }
+
 
 .sidebar h2 {
     font-size: 17px;
@@ -127,20 +111,19 @@ body {
    CONVERSATIONS
 ======================================== */
 
-.sidebar {
-    overflow-y: auto;
-}
-
 .sidebar-section-header {
     display: flex;
     align-items: center;
     justify-content: space-between;
+
     margin-bottom: 12px;
 }
+
 
 .sidebar-section-header h2 {
     margin-bottom: 0;
 }
+
 
 .new-chat-button {
     width: 30px;
@@ -158,9 +141,11 @@ body {
     cursor: pointer;
 }
 
+
 .new-chat-button:hover {
     background: #f3f4f6;
 }
+
 
 .conversation-list {
     display: flex;
@@ -170,12 +155,14 @@ body {
     margin-bottom: 28px;
 }
 
+
 .conversation-item {
     display: flex;
     align-items: center;
     gap: 8px;
 
     width: 100%;
+
     padding: 9px 10px;
 
     border: none;
@@ -191,14 +178,17 @@ body {
     cursor: pointer;
 }
 
+
 .conversation-item:hover {
     background: #f3f4f6;
 }
+
 
 .conversation-item.active {
     background: #f1f5f9;
     font-weight: 600;
 }
+
 
 .conversation-title {
     flex: 1;
@@ -207,6 +197,7 @@ body {
     text-overflow: ellipsis;
     white-space: nowrap;
 }
+
 
 .delete-conversation-button {
     border: none;
@@ -221,13 +212,17 @@ body {
     opacity: 0;
 }
 
-.conversation-item:hover .delete-conversation-button {
+
+.conversation-item:hover
+.delete-conversation-button {
     opacity: 1;
 }
+
 
 .delete-conversation-button:hover {
     color: #ef4444;
 }
+
 
 .empty-conversations {
     padding: 8px 4px;
@@ -235,213 +230,6 @@ body {
     color: #9ca3af;
 
     font-size: 12px;
-}
-
-.document-section {
-    border-top: 1px solid #e5e7eb;
-    padding-top: 24px;
-}
-
-
-/* ========================================
-   UPLOAD BOX
-======================================== */
-
-.upload-box {
-    border: 1px dashed #cbd5e1;
-
-    border-radius: 10px;
-
-    padding: 20px;
-
-    background: #f8fafc;
-}
-
-.upload-label {
-    display: block;
-
-    text-align: center;
-
-    font-size: 14px;
-    font-weight: 600;
-
-    cursor: pointer;
-
-    color: #374151;
-}
-
-.upload-box input {
-    width: 100%;
-    margin-top: 14px;
-
-    font-size: 12px;
-}
-
-
-/* ========================================
-   SELECTED FILE
-======================================== */
-
-.selected-file {
-    margin-top: 14px;
-
-    padding: 10px;
-
-    border-radius: 8px;
-
-    background: #ffffff;
-
-    border: 1px solid #e5e7eb;
-
-    display: flex;
-    align-items: center;
-    gap: 8px;
-
-    font-size: 13px;
-
-    overflow: hidden;
-}
-
-.selected-file span:last-child {
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-}
-
-.hidden {
-    display: none !important;
-}
-
-
-/* ========================================
-   BUTTONS
-======================================== */
-
-.primary-button,
-.ask-button {
-    border: none;
-
-    background: #111827;
-
-    color: white;
-
-    border-radius: 8px;
-
-    cursor: pointer;
-
-    font-weight: 600;
-
-    transition: 0.2s;
-}
-
-.primary-button {
-    width: 100%;
-
-    padding: 12px;
-
-    margin-top: 16px;
-}
-
-.primary-button:hover,
-.ask-button:hover {
-    background: #374151;
-}
-
-.primary-button:disabled,
-.ask-button:disabled {
-    opacity: 0.6;
-    cursor: not-allowed;
-}
-
-.secondary-button {
-    border: 1px solid #d1d5db;
-
-    background: white;
-
-    color: #374151;
-
-    padding: 9px 14px;
-
-    border-radius: 7px;
-
-    cursor: pointer;
-
-    font-size: 13px;
-}
-
-.secondary-button:hover {
-    background: #f9fafb;
-}
-
-
-/* ========================================
-   INDEX STATUS
-======================================== */
-
-.index-status {
-    margin-top: 20px;
-
-    padding: 13px;
-
-    border-radius: 9px;
-
-    background: #f8fafc;
-
-    display: flex;
-    gap: 10px;
-}
-
-.index-status strong {
-    font-size: 13px;
-}
-
-.index-status p {
-    margin-top: 3px;
-
-    font-size: 11px;
-
-    color: #6b7280;
-}
-
-
-/* ========================================
-   STATISTICS
-======================================== */
-
-.statistics {
-    display: flex;
-
-    gap: 10px;
-
-    margin-top: 20px;
-}
-
-.stat-card {
-    flex: 1;
-
-    border: 1px solid #e5e7eb;
-
-    border-radius: 9px;
-
-    padding: 14px 10px;
-
-    text-align: center;
-
-    background: white;
-}
-
-.stat-card strong {
-    display: block;
-
-    font-size: 22px;
-
-    margin-bottom: 4px;
-}
-
-.stat-card span {
-    font-size: 11px;
-
-    color: #6b7280;
 }
 
 
@@ -457,6 +245,8 @@ body {
     flex-direction: column;
 
     min-width: 0;
+
+    position: relative;
 }
 
 
@@ -480,9 +270,11 @@ body {
     justify-content: space-between;
 }
 
+
 .chat-header h2 {
     font-size: 17px;
 }
+
 
 .chat-header p {
     margin-top: 4px;
@@ -527,9 +319,11 @@ body {
     justify-content: flex-end;
 }
 
+
 .user-message-container {
     max-width: 70%;
 }
+
 
 .user-label {
     text-align: right;
@@ -540,6 +334,7 @@ body {
 
     margin-bottom: 5px;
 }
+
 
 .user-message {
     background: #111827;
@@ -566,9 +361,11 @@ body {
     justify-content: flex-start;
 }
 
+
 .assistant-message-container {
     max-width: 75%;
 }
+
 
 .assistant-label {
     text-align: left;
@@ -579,6 +376,7 @@ body {
 
     margin-bottom: 5px;
 }
+
 
 .assistant-message {
     background: white;
@@ -619,6 +417,7 @@ body {
     color: #6b7280;
 }
 
+
 .message-sources strong {
     color: #374151;
 
@@ -626,6 +425,7 @@ body {
 
     margin-bottom: 5px;
 }
+
 
 .message-sources div {
     margin-top: 3px;
@@ -644,17 +444,20 @@ body {
     text-align: center;
 }
 
+
 .welcome-icon {
     font-size: 42px;
 
     margin-bottom: 15px;
 }
 
+
 .welcome-message h2 {
     font-size: 23px;
 
     margin-bottom: 8px;
 }
+
 
 .welcome-message p {
     color: #6b7280;
@@ -679,7 +482,10 @@ body {
     gap: 8px;
 
     flex-wrap: wrap;
+
+    background: #ffffff;
 }
+
 
 .example-questions p {
     font-size: 12px;
@@ -688,6 +494,7 @@ body {
 
     margin-right: 4px;
 }
+
 
 .example-question {
     border: 1px solid #dbe1e8;
@@ -704,6 +511,7 @@ body {
 
     color: #4b5563;
 }
+
 
 .example-question:hover {
     background: #f3f4f6;
@@ -723,8 +531,51 @@ body {
 
     display: flex;
 
+    align-items: stretch;
+
     gap: 10px;
 }
+
+
+/* ========================================
+   ATTACH BUTTON
+======================================== */
+
+.attach-button {
+    width: 46px;
+    min-width: 46px;
+
+    border: 1px solid #d1d5db;
+
+    background: white;
+
+    color: #374151;
+
+    border-radius: 9px;
+
+    font-size: 26px;
+
+    line-height: 1;
+
+    cursor: pointer;
+}
+
+
+.attach-button:hover {
+    background: #f3f4f6;
+}
+
+
+.attach-button:disabled {
+    opacity: 0.6;
+
+    cursor: not-allowed;
+}
+
+
+/* ========================================
+   TEXTAREA
+======================================== */
 
 .chat-input-area textarea {
     flex: 1;
@@ -744,14 +595,64 @@ body {
     outline: none;
 }
 
+
 .chat-input-area textarea:focus {
     border-color: #9ca3af;
 }
 
+
+/* ========================================
+   ASK BUTTON
+======================================== */
+
 .ask-button {
     width: 80px;
 
-    align-self: stretch;
+    border: none;
+
+    background: #111827;
+
+    color: white;
+
+    border-radius: 8px;
+
+    cursor: pointer;
+
+    font-weight: 600;
+
+    transition: 0.2s;
+}
+
+
+.ask-button:hover {
+    background: #374151;
+}
+
+
+.ask-button:disabled {
+    opacity: 0.6;
+
+    cursor: not-allowed;
+}
+
+
+/* ========================================
+   UPLOAD STATUS
+======================================== */
+
+.upload-status {
+    padding: 0 24px 16px;
+
+    background: white;
+
+    font-size: 13px;
+
+    color: #4b5563;
+}
+
+
+.hidden {
+    display: none !important;
 }
 
 
@@ -763,15 +664,18 @@ body {
     width: 7px;
 }
 
+
 .chat-messages::-webkit-scrollbar-track {
     background: transparent;
 }
+
 
 .chat-messages::-webkit-scrollbar-thumb {
     background: #d1d5db;
 
     border-radius: 10px;
 }
+
 
 .chat-messages::-webkit-scrollbar-thumb:hover {
     background: #9ca3af;
@@ -788,23 +692,29 @@ body {
         width: 240px;
     }
 
+
     .chat-messages {
         padding: 20px;
     }
+
 
     .example-questions {
         padding: 10px 15px;
     }
 
+
     .chat-input-area {
         padding: 12px 15px;
     }
+
 
     .user-message-container,
     .assistant-message-container {
         max-width: 85%;
     }
+
 }
+
 
 @media (max-width: 650px) {
 
@@ -812,16 +722,20 @@ body {
         display: none;
     }
 
+
     .header {
         padding: 0 15px;
     }
+
 
     .system-status {
         display: none;
     }
 
+
     .user-message-container,
     .assistant-message-container {
         max-width: 90%;
     }
+
 }

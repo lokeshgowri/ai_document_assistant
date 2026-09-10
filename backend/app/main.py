@@ -1,10 +1,13 @@
 from contextlib import asynccontextmanager
+from pathlib import Path
+import os
 
 from fastapi import (
     FastAPI,
     HTTPException,
     UploadFile,
     File,
+    Form,
     Depends
 )
 from fastapi.middleware.cors import CORSMiddleware
@@ -89,7 +92,7 @@ async def lifespan(app: FastAPI):
 # =========================================================
 # FASTAPI APPLICATION
 # =========================================================
-
+IS_PRODUCTION = os.getenv("VERCEL") == "1"
 app = FastAPI(
     title="AI Document Q&A Assistant",
     description=(
@@ -98,6 +101,9 @@ app = FastAPI(
         "using semantic search, keyword search, "
         "and a grounded language model."
     ),
+    docs_url=None if IS_PRODUCTION else "/docs",
+    redoc_url=None if IS_PRODUCTION else "/redoc",
+    openapi_url=None if IS_PRODUCTION else "/openapi.json",
     version="1.0.0",
     lifespan=lifespan
 )
@@ -180,14 +186,14 @@ async def ask_question(
     # -----------------------------------------------------
 
     if rag_service is None:
-
-        raise HTTPException(
-            status_code=400,
-            detail=(
-                "Documents have not been indexed yet. "
-                "Please call /index first."
-            )
-        )
+            if request.conversation_id is None:
+                raise HTTPException(
+                    status_code=400,
+                    detail=(
+                        "A conversation is required "
+                        "to ask a question."
+                        )
+                        )
 
     conversation_service = ConversationService(db)
 
@@ -230,7 +236,8 @@ async def ask_question(
             question=request.question,
             top_k=request.top_k,
             source=request.source,
-            section=request.section
+            section=request.section,
+            conversation_id=request.conversation_id
         )
 
     except ValueError as exc:
@@ -332,7 +339,6 @@ async def get_index_status():
         await indexing_service.get_index_status()
     )
 
-
 # =========================================================
 # UPLOAD DOCUMENT
 # =========================================================
@@ -340,37 +346,139 @@ async def get_index_status():
 @app.post(
     "/upload",
     tags=["Documents"],
-    summary="Upload a document"
+    summary="Upload and automatically index a document"
 )
 async def upload_document(
-    file: UploadFile = File(...)
+    file: UploadFile = File(...),
+    conversation_id: int = Form(...),
+    db: Session = Depends(get_db)
 ):
 
     try:
 
         # -------------------------------------------------
-        # Read uploaded file
+        # Validate conversation
+        # -------------------------------------------------
+
+        conversation_service = ConversationService(db)
+
+        conversation = (
+            await conversation_service.get_conversation(
+                conversation_id
+            )
+        )
+
+        if not conversation:
+
+            raise HTTPException(
+                status_code=404,
+                detail="Conversation not found."
+            )
+
+        # -------------------------------------------------
+        # Validate file extension
+        # -------------------------------------------------
+
+        allowed_extensions = {
+            ".pdf",
+            ".docx",
+            ".txt"
+        }
+
+        extension = (
+            Path(file.filename)
+            .suffix
+            .lower()
+        )
+
+        if extension not in allowed_extensions:
+
+            raise HTTPException(
+                status_code=400,
+                detail=(
+                    "Unsupported file type. "
+                    "Only PDF, DOCX and TXT files are allowed."
+                )
+            )
+
+        # -------------------------------------------------
+        # Read file
         # -------------------------------------------------
 
         file_bytes = await file.read()
 
+        if not file_bytes:
+
+            raise HTTPException(
+                status_code=400,
+                detail="Uploaded document is empty."
+            )
+
         # -------------------------------------------------
-        # Preserve original filename
+        # Store document inside conversation namespace
+        #
+        # documents/{conversation_id}/{filename}
         # -------------------------------------------------
 
         pathname = (
-            f"documents/{file.filename}"
+            f"documents/"
+            f"{conversation_id}/"
+            f"{file.filename}"
         )
 
-        # -------------------------------------------------
-        # Upload document to Vercel Blob
-        # -------------------------------------------------
-
-        blob = await blob_service.upload_file(
+        await blob_service.upload_file(
             pathname=pathname,
             data=file_bytes,
             content_type=file.content_type,
             overwrite=True
+        )
+
+        # -------------------------------------------------
+        # Generate conversation title
+        # -------------------------------------------------
+
+        filename_without_extension = (
+            Path(file.filename).stem
+        )
+
+        title = filename_without_extension.replace(
+            "_",
+            " "
+        ).replace(
+            "-",
+            " "
+        )
+
+        title = " ".join(
+            title.split()
+        ).title()
+
+        # -------------------------------------------------
+        # Update conversation title
+        # -------------------------------------------------
+
+        await conversation_service.update_title(
+            conversation_id=conversation_id,
+            title=title
+        )
+
+        # -------------------------------------------------
+        # Automatically index all scoped documents
+        # -------------------------------------------------
+
+        global rag_service
+
+        result = (
+            await indexing_service.build_index()
+        )
+
+        rag_service = RAGService(
+            vector_store=(
+                indexing_service.vector_store
+            ),
+            embedding_service=(
+                indexing_service.embedding_service
+            )
         )
 
         return {
@@ -378,26 +486,32 @@ async def upload_document(
             "status": "success",
 
             "message": (
-                "Document uploaded successfully."
+                "Document indexed successfully."
             ),
 
             "filename": file.filename,
 
-            "pathname": blob.pathname,
+            "conversation_id": conversation_id
 
-            "url": blob.url
         }
+
+    except HTTPException:
+
+        raise
 
     except Exception as exc:
 
         print(
-            f"UPLOAD ERROR: {exc}"
+            f"UPLOAD/INDEX ERROR: {exc}"
         )
 
         raise HTTPException(
             status_code=500,
-            detail="Failed to upload document."
+            detail=(
+                "Failed to upload and index document."
+            )
         )
+
 
 
 # =========================================================

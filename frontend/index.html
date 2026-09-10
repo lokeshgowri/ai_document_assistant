@@ -7,6 +7,10 @@
 
     <title>AI Document Q&A Assistant</title>
 
+    <!-- Application Favicon -->
+    <link rel="icon" type="image/png" href="assets/favicon.png">
+    <link rel="apple-touch-icon" href="assets/favicon.png">
+
     <link rel="stylesheet" href="css/style.css">
 </head>
 
@@ -29,11 +33,6 @@
 
         </div>
 
-        <div class="system-status">
-            <span class="status-dot"></span>
-            Backend Connected
-        </div>
-
     </header>
 
 
@@ -45,8 +44,6 @@
         <!-- Sidebar -->
 
         <aside class="sidebar">
-
-            <!-- Conversations -->
 
             <div class="conversation-section">
 
@@ -76,100 +73,6 @@
 
             </div>
 
-
-            <!-- Documents -->
-
-            <div class="document-section">
-
-                <h2>Documents</h2>
-
-                <div class="upload-box">
-
-                    <label
-                        for="documentInput"
-                        class="upload-label"
-                    >
-                        Choose Document
-                    </label>
-
-                    <input
-                        type="file"
-                        id="documentInput"
-                        accept=".pdf,.docx,.txt"
-                    >
-
-                    <div
-                        id="selectedFile"
-                        class="selected-file hidden"
-                    >
-
-                        <span>📄</span>
-
-                        <span id="fileName">
-                            No file selected
-                        </span>
-
-                    </div>
-
-                </div>
-
-
-                <button
-                    id="indexButton"
-                    type="button"
-                    class="primary-button"
-                >
-                    Index Documents
-                </button>
-
-
-                <div
-                    id="indexStatus"
-                    class="index-status"
-                >
-
-                    <span class="status-dot"></span>
-
-                    <div>
-                        <strong>Ready</strong>
-                        <p>Documents can be indexed</p>
-                    </div>
-
-                </div>
-
-
-                <!-- Document Statistics -->
-
-                <div class="statistics">
-
-                    <div class="stat-card">
-
-                        <strong id="documentCount">
-                            0
-                        </strong>
-
-                        <span>
-                            Documents
-                        </span>
-
-                    </div>
-
-                    <div class="stat-card">
-
-                        <strong id="chunkCount">
-                            0
-                        </strong>
-
-                        <span>
-                            Chunks
-                        </span>
-
-                    </div>
-
-                </div>
-
-            </div>
-
         </aside>
 
 
@@ -186,7 +89,7 @@
                     </h2>
 
                     <p>
-                        Ask questions based on your indexed documents.
+                        Ask questions based on your documents.
                     </p>
 
                 </div>
@@ -212,8 +115,8 @@
                     </h2>
 
                     <p>
-                        Index your documents and ask questions
-                        about their content.
+                        Upload a document using the + button
+                        and ask questions about its content.
                     </p>
 
                 </div>
@@ -255,11 +158,34 @@
 
             <div class="chat-input-area">
 
+                <!-- Hidden document input -->
+
+                <input
+                    type="file"
+                    id="documentInput"
+                    accept=".pdf,.docx,.txt"
+                    hidden
+                >
+
+                <!-- Attachment Button -->
+
+                <button
+                    id="attachButton"
+                    type="button"
+                    class="attach-button"
+                    title="Attach document"
+                    aria-label="Attach document"
+                >
+                    📎
+                </button>
+
+
                 <textarea
                     id="questionInput"
-                    placeholder="Ask a question about your documents..."
+                    placeholder="Ask a question about your document..."
                     rows="2"
                 ></textarea>
+
 
                 <button
                     id="askButton"
@@ -270,6 +196,14 @@
                 </button>
 
             </div>
+
+
+            <!-- Upload Status -->
+
+            <div
+                id="uploadStatus"
+                class="upload-status hidden"
+            ></div>
 
         </section>
 

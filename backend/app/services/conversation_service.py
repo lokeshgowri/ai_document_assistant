@@ -196,6 +196,63 @@ class ConversationService:
             )
             .all()
         )
+    # =========================================================
+    # UPDATE CONVERSATION TITLE
+    # =========================================================
+
+    async def update_title(
+        self,
+        conversation_id: int,
+        title: str
+    ):
+
+        if self.use_blob:
+
+            conversation = (
+                await self._get_blob_conversation(
+                    conversation_id
+                )
+            )
+
+            if conversation is None:
+                return None
+
+            conversation["title"] = title
+
+            conversation["updated_at"] = (
+                datetime.now(
+                    timezone.utc
+                ).isoformat()
+            )
+
+            await self._save_blob_conversation(
+                conversation
+            )
+
+            return conversation
+
+        conversation = (
+            self.db.query(Conversation)
+            .filter(
+                Conversation.id == conversation_id,
+                Conversation.deleted_at.is_(None)
+            )
+            .first()
+        )
+
+        if not conversation:
+            return None
+
+        conversation.title = title
+
+        conversation.updated_at = (
+            datetime.now(timezone.utc)
+        )
+
+        self.db.commit()
+        self.db.refresh(conversation)
+
+        return conversation
 
     # =========================================================
     # GET ONE CONVERSATION
