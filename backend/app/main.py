@@ -1,6 +1,5 @@
 from contextlib import asynccontextmanager
 from pathlib import Path
-import os
 
 from fastapi import (
     FastAPI,
@@ -92,7 +91,7 @@ async def lifespan(app: FastAPI):
 # =========================================================
 # FASTAPI APPLICATION
 # =========================================================
-IS_PRODUCTION = os.getenv("VERCEL") == "1"
+
 app = FastAPI(
     title="AI Document Q&A Assistant",
     description=(
@@ -101,9 +100,6 @@ app = FastAPI(
         "using semantic search, keyword search, "
         "and a grounded language model."
     ),
-    docs_url=None if IS_PRODUCTION else "/docs",
-    redoc_url=None if IS_PRODUCTION else "/redoc",
-    openapi_url=None if IS_PRODUCTION else "/openapi.json",
     version="1.0.0",
     lifespan=lifespan
 )
