@@ -1,11 +1,20 @@
-const API_BASE_URL = "http://127.0.0.1:8000";
+//const API_BASE_URL = "https://ai-document-assistant-nu.vercel.app";
+//for hosting 
 
+const API_BASE_URL = "http://127.0.0.1:8000"; 
+//for local 
 
 // ========================================
 // STATE
 // ========================================
 
 let currentConversationId = null;
+
+// Keep the messages of the currently open
+// conversation in frontend memory.
+// This prevents UI refreshes from disturbing
+// the visible chat history.
+let currentMessages = [];
 
 
 // ========================================
@@ -152,6 +161,7 @@ function renderConversationList(
         );
 
         return;
+
     }
 
 
@@ -295,10 +305,11 @@ async function createConversation() {
         currentConversationId =
             conversation.id;
 
+        currentMessages = [];
 
         chatTitle.textContent =
-            conversation.title;
-
+            conversation.title ||
+            "New Conversation";
 
         clearMessages();
 
@@ -344,6 +355,12 @@ async function openConversation(
     conversationId
 ) {
 
+    // If the user clicks the already-open
+    // conversation, do nothing.
+    //
+    // This prevents unnecessary reloads
+    // of the current chat.
+
     if (
         conversationId ===
         currentConversationId
@@ -371,37 +388,31 @@ async function openConversation(
             "New Conversation";
 
 
-        clearMessages();
+        // ------------------------------------
+        // Store complete conversation history
+        // locally for the current chat.
+        // ------------------------------------
+
+        currentMessages =
+            Array.isArray(
+                conversation.messages
+            )
+                ? conversation.messages.map(
+                    (message) => ({
+                        role: message.role,
+                        content: message.content
+                    })
+                )
+                : [];
 
 
-        if (
-            conversation.messages &&
-            conversation.messages.length > 0
-        ) {
-
-            conversation.messages.forEach(
-                (message) => {
-
-                    addMessage(
-                        message.content,
-                        message.role
-                    );
-
-                }
-            );
-
-        } else {
-
-            renderWelcomeMessage();
-
-        }
+        renderCurrentMessages();
 
 
         const conversations =
             await apiRequest(
                 "/conversations"
             );
-
 
         renderConversationList(
             conversations
@@ -415,6 +426,43 @@ async function openConversation(
         );
 
     }
+
+}
+
+
+// ========================================
+// RENDER CURRENT MESSAGE HISTORY
+// ========================================
+
+function renderCurrentMessages() {
+
+    clearMessages();
+
+
+    if (
+        currentMessages.length === 0
+    ) {
+
+        renderWelcomeMessage();
+
+        return;
+
+    }
+
+
+    currentMessages.forEach(
+        (message) => {
+
+            addMessageToUI(
+                message.content,
+                message.role
+            );
+
+        }
+    );
+
+
+    scrollToBottom();
 
 }
 
@@ -457,6 +505,8 @@ async function deleteConversation(
 
             currentConversationId = null;
 
+            currentMessages = [];
+
             resetChat();
 
         }
@@ -483,6 +533,8 @@ async function deleteConversation(
 function resetChat() {
 
     currentConversationId = null;
+
+    currentMessages = [];
 
     chatTitle.textContent =
         "New Conversation";
@@ -596,8 +648,10 @@ async function askQuestion() {
 
     try {
 
+        // ------------------------------------
         // Create conversation automatically
         // if this is the first question.
+        // ------------------------------------
 
         if (
             currentConversationId ===
@@ -627,13 +681,31 @@ async function askQuestion() {
                 conversation.id;
 
 
+            currentMessages = [];
+
+
             chatTitle.textContent =
-                conversation.title;
+                conversation.title ||
+                "New Conversation";
 
         }
 
 
-        addMessage(
+        // ------------------------------------
+        // Add user's question to local history
+        // ------------------------------------
+
+        const userMessage = {
+            role: "user",
+            content: question
+        };
+
+        currentMessages.push(
+            userMessage
+        );
+
+
+        addMessageToUI(
             question,
             "user"
         );
@@ -650,8 +722,12 @@ async function askQuestion() {
             "Thinking...";
 
 
+        // ------------------------------------
+        // Add temporary assistant message
+        // ------------------------------------
+
         loadingMessage =
-            addMessage(
+            addMessageToUI(
                 "Thinking...",
                 "assistant"
             );
@@ -682,12 +758,36 @@ async function askQuestion() {
             );
 
 
+        const answer =
+            data.answer ||
+            "No answer returned.";
+
+
+        // ------------------------------------
+        // Update assistant UI
+        // ------------------------------------
+
         updateAssistantMessage(
             loadingMessage,
-            data.answer ||
-            "No answer returned."
+            answer
         );
 
+
+        // ------------------------------------
+        // Replace temporary assistant
+        // message with the real one in
+        // local history.
+        // ------------------------------------
+
+        currentMessages.push({
+            role: "assistant",
+            content: answer
+        });
+
+
+        // ------------------------------------
+        // Add sources
+        // ------------------------------------
 
         if (
             data.sources &&
@@ -701,6 +801,15 @@ async function askQuestion() {
 
         }
 
+
+        // ------------------------------------
+        // Refresh only the sidebar.
+        //
+        // IMPORTANT:
+        // We do NOT reload the conversation.
+        // Therefore the visible chat history
+        // stays untouched.
+        // ------------------------------------
 
         await refreshConversationList();
 
@@ -752,6 +861,12 @@ async function refreshConversationList() {
             );
 
 
+        // Only update the sidebar.
+        //
+        // Do NOT call openConversation()
+        // here because doing so would replace
+        // the current chat UI.
+
         renderConversationList(
             conversations
         );
@@ -768,10 +883,10 @@ async function refreshConversationList() {
 
 
 // ========================================
-// ADD MESSAGE
+// ADD MESSAGE TO UI
 // ========================================
 
-function addMessage(
+function addMessageToUI(
     text,
     sender
 ) {
@@ -1005,8 +1120,10 @@ documentInput.addEventListener(
 
         try {
 
+            // --------------------------------
             // Create conversation automatically
             // if one does not exist.
+            // --------------------------------
 
             if (
                 currentConversationId ===
@@ -1036,8 +1153,12 @@ documentInput.addEventListener(
                     conversation.id;
 
 
+                currentMessages = [];
+
+
                 chatTitle.textContent =
-                    conversation.title;
+                    conversation.title ||
+                    "New Conversation";
 
             }
 
@@ -1087,7 +1208,12 @@ documentInput.addEventListener(
                 "✓ Document indexed successfully.";
 
 
-            // Update conversation title
+            // --------------------------------
+            // Update conversation title only.
+            //
+            // IMPORTANT:
+            // We DO NOT clear the messages.
+            // --------------------------------
 
             if (
                 data.filename
@@ -1124,6 +1250,10 @@ documentInput.addEventListener(
 
             }
 
+
+            // --------------------------------
+            // Refresh sidebar only.
+            // --------------------------------
 
             await refreshConversationList();
 
