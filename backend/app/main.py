@@ -216,11 +216,16 @@ async def ask_question(
         # Save user's question
         # -------------------------------------------------
 
-        await conversation_service.add_message(
+        saved_user_message = await conversation_service.add_message(
             conversation_id=request.conversation_id,
             role="user",
             content=request.question
-        )
+            )
+        if saved_user_message is None:
+            raise HTTPException(
+                status_code=404,
+                detail="Conversation no longer exists. Please start a new conversation."
+                )
 
     # -----------------------------------------------------
     # 2. Run RAG pipeline
@@ -264,14 +269,19 @@ async def ask_question(
 
     if request.conversation_id is not None:
 
-        await conversation_service.add_message(
+        saved_assistant_message = await conversation_service.add_message(
             conversation_id=request.conversation_id,
             role="assistant",
             content=response["answer"]
-        )
+            )
+        if saved_assistant_message is None:
+            raise HTTPException(
+                status_code=500,
+                detail="Failed to save assistant response."
+                )
 
     # -----------------------------------------------------
-    # 4. Return RAG response
+    # 4. Return RAG response 
     # -----------------------------------------------------
 
     return response
