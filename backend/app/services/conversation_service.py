@@ -6,7 +6,7 @@ from sqlalchemy.orm import Session
 
 from app.db.models import Conversation, Message
 from app.services.blob_service import BlobStorageService
-
+from vercel._internal.blob.errors import BlobNotFoundError
 
 class ConversationService:
 
@@ -25,19 +25,20 @@ class ConversationService:
         return f"conversations/{conversation_id}.json"
 
     async def _get_blob_conversation(
-        self,
-        conversation_id: int
-    ):
-        result = await self.blob_service.get_file(
-            self._blob_path(conversation_id)
-        )
-
-        if result is None:
-            return None
-
-        return json.loads(
-            result.content.decode("utf-8")
-        )
+            self,
+            conversation_id: int
+            ):
+            try:
+                result = await self.blob_service.get_file(
+                    self._blob_path(conversation_id)
+                    )
+            except BlobNotFoundError:
+                return None
+            if result is None:
+                return None
+            return json.loads(
+                result.content.decode("utf-8")
+                )
 
     async def _save_blob_conversation(
         self,
