@@ -47,3 +47,7 @@ def get_db():
         yield db
     finally:
         db.close()
+
+from app.db.models import Conversation, Message
+
+Base.metadata.create_all(bind=engine)

@@ -27,3 +27,5 @@ google-genai
 vercel
 
 sqlalchemy
+
+requests

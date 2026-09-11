@@ -205,6 +205,9 @@ Section: {metadata.get("section", "Unknown")}
 
         except ValueError:
             raise
+        
+        except RuntimeError:
+            raise
 
         except Exception as exc:
             raise RuntimeError("Failed to process the question.") from exc

@@ -1,53 +1,99 @@
-import os
+import logging
 import random
 import re
 import time
 
-from dotenv import load_dotenv
+import requests
 from google import genai
 from google.genai import types
 from google.genai.errors import APIError
 
+from app.config import (
+    EMBEDDING_PROVIDER,
+    EMBEDDING_MODEL,
+    GEMINI_API_KEY,
+    OLLAMA_BASE_URL,
+    OLLAMA_EMBEDDING_MODEL,
+)
 
-load_dotenv()
+
+logger = logging.getLogger(__name__)
 
 
 class EmbeddingService:
 
-    def __init__(
-        self,
-        model: str = "gemini-embedding-2"
-    ):
+    def __init__(self):
 
-        self.model = model
+        self.provider = EMBEDDING_PROVIDER
 
-        api_key = os.getenv(
-            "GEMINI_API_KEY"
-        )
+        # --------------------------------------------------
+        # Gemini
+        # --------------------------------------------------
 
-        if not api_key:
-            raise RuntimeError(
-                "GEMINI_API_KEY is not configured."
+        if self.provider == "gemini":
+
+            if not GEMINI_API_KEY:
+                raise RuntimeError(
+                    "GEMINI_API_KEY is not configured."
+                )
+
+            self.model = EMBEDDING_MODEL or "gemini-embedding-2"
+
+            self.client = genai.Client(
+                api_key=GEMINI_API_KEY
             )
 
-        self.client = genai.Client(
-            api_key=api_key
-        )
+            self.output_dimension = 768
 
-        # Gemini Embedding 2 supports
-        # multiple output dimensions.
-        #
-        # 768 is suitable for our
-        # FAISS vector index.
-        self.output_dimension = 768
+            self.max_retries = 6
 
-        # Maximum number of retries for
-        # temporary Gemini API errors.
-        self.max_retries = 6
+            logger.info(
+                "Embedding provider initialized: Gemini (%s, %s dimensions)",
+                self.model,
+                self.output_dimension
+            )
 
-    # =========================================================
-    # GET RETRY DELAY
-    # =========================================================
+        # --------------------------------------------------
+        # Ollama
+        # --------------------------------------------------
+
+        elif self.provider == "ollama":
+
+            self.model = OLLAMA_EMBEDDING_MODEL
+
+            self.base_url = OLLAMA_BASE_URL.rstrip("/")
+
+            # The dimension will be detected from the first
+            # generated embedding instead of being hard-coded.
+            self.output_dimension = None
+
+            logger.info(
+                "Embedding provider initialized: Ollama (%s)",
+                self.model
+            )
+
+        else:
+
+            raise RuntimeError(
+                f"Unsupported embedding provider: "
+                f"{self.provider}"
+            )
+
+    # ======================================================
+    # PUBLIC INFORMATION
+    # ======================================================
+
+    def get_provider_info(self) -> dict:
+
+        return {
+            "provider": self.provider,
+            "model": self.model,
+            "dimension": self.output_dimension
+        }
+
+    # ======================================================
+    # GEMINI RETRY HELPERS
+    # ======================================================
 
     def _get_retry_delay(
         self,
@@ -58,7 +104,6 @@ class EmbeddingService:
         error_message = str(error)
 
         # Example:
-        #
         # Please retry in 31.742373814s
 
         match = re.search(
@@ -69,17 +114,12 @@ class EmbeddingService:
 
         if match:
 
-            delay = float(
-                match.group(1)
-            )
-
             return (
-                delay
+                float(match.group(1))
                 + random.uniform(1, 3)
             )
 
         # Example:
-        #
         # retryDelay: 31s
 
         match = re.search(
@@ -90,23 +130,12 @@ class EmbeddingService:
 
         if match:
 
-            delay = float(
-                match.group(1)
-            )
-
             return (
-                delay
+                float(match.group(1))
                 + random.uniform(1, 3)
             )
 
         # Fallback exponential backoff.
-        #
-        # attempt 0 -> 2 seconds
-        # attempt 1 -> 4 seconds
-        # attempt 2 -> 8 seconds
-        # attempt 3 -> 16 seconds
-        # attempt 4 -> 32 seconds
-        # attempt 5 -> 60 seconds maximum
 
         delay = min(
             2 ** (attempt + 1),
@@ -118,18 +147,12 @@ class EmbeddingService:
             + random.uniform(0.5, 2)
         )
 
-    # =========================================================
-    # CHECK WHETHER ERROR IS RETRYABLE
-    # =========================================================
-
     def _is_retryable_error(
         self,
         error: Exception
     ) -> bool:
 
-        error_message = str(
-            error
-        ).lower()
+        error_message = str(error).lower()
 
         return (
             "429" in error_message
@@ -140,35 +163,53 @@ class EmbeddingService:
             or "service unavailable" in error_message
         )
 
-    # =========================================================
+    # ======================================================
     # EMBED ONE TEXT
-    # =========================================================
+    # ======================================================
 
     def embed_text(
         self,
         text: str
     ) -> list[float]:
 
-        for attempt in range(
-            self.max_retries
-        ):
+        if not text or not text.strip():
+            raise ValueError(
+                "Text cannot be empty."
+            )
+
+        if self.provider == "gemini":
+
+            return self._embed_gemini(text)
+
+        if self.provider == "ollama":
+
+            return self._embed_ollama(text)
+
+        raise RuntimeError(
+            f"Unsupported embedding provider: "
+            f"{self.provider}"
+        )
+
+    # ======================================================
+    # GEMINI EMBEDDING
+    # ======================================================
+
+    def _embed_gemini(
+        self,
+        text: str
+    ) -> list[float]:
+
+        for attempt in range(self.max_retries):
 
             try:
 
-                response = (
-                    self.client.models.embed_content(
-                        model=self.model,
-                        contents=text,
-                        config=types.EmbedContentConfig(
-                            output_dimensionality=(
-                                self.output_dimension
-                            )
-                        )
+                response = self.client.models.embed_content(
+                    model=self.model,
+                    contents=text,
+                    config=types.EmbedContentConfig(
+                        output_dimensionality=self.output_dimension
                     )
                 )
-
-                # Make sure Gemini returned
-                # an embedding.
 
                 if not response.embeddings:
 
@@ -176,23 +217,13 @@ class EmbeddingService:
                         "Gemini returned no embedding."
                     )
 
-                # Because we send ONE text,
-                # Gemini should return ONE embedding.
-
-                embedding = (
-                    response.embeddings[0]
-                )
-
-                values = embedding.values
+                values = response.embeddings[0].values
 
                 if not values:
 
                     raise RuntimeError(
                         "Gemini returned an empty embedding."
                     )
-
-                # Make sure the dimension is
-                # what our FAISS index expects.
 
                 if len(values) != self.output_dimension:
 
@@ -207,50 +238,104 @@ class EmbeddingService:
 
             except APIError as exc:
 
-                if not self._is_retryable_error(
-                    exc
-                ):
-
+                if not self._is_retryable_error(exc):
                     raise
 
-                # All retries exhausted.
-
-                if attempt >= (
-                    self.max_retries - 1
-                ):
+                if attempt >= self.max_retries - 1:
 
                     raise RuntimeError(
                         "Failed to generate embedding "
                         "after multiple Gemini API retries."
                     ) from exc
 
-                delay = (
-                    self._get_retry_delay(
-                        exc,
-                        attempt
-                    )
+                delay = self._get_retry_delay(
+                    exc,
+                    attempt
                 )
 
-                print(
-                    "Gemini API temporary error."
-                )
-
-                print(
-                    f"Retrying in "
-                    f"{delay:.1f} seconds..."
-                )
-
-                time.sleep(
+                logger.warning(
+                    "Gemini embedding request failed temporarily. "
+                    "Retrying in %.1f seconds...",
                     delay
                 )
 
-        raise RuntimeError(
-            "Failed to generate embedding."
-        )
+                time.sleep(delay)
 
-    # =========================================================
+    # ======================================================
+    # OLLAMA EMBEDDING
+    # ======================================================
+
+    def _embed_ollama(
+        self,
+        text: str
+    ) -> list[float]:
+
+        try:
+
+            response = requests.post(
+                f"{self.base_url}/api/embed",
+                json={
+                    "model": self.model,
+                    "input": text
+                },
+                timeout=120
+            )
+
+            response.raise_for_status()
+
+            data = response.json()
+
+            embeddings = data.get("embeddings")
+
+            if not embeddings:
+
+                raise RuntimeError(
+                    "Ollama returned no embedding."
+                )
+
+            values = embeddings[0]
+
+            if not values:
+
+                raise RuntimeError(
+                    "Ollama returned an empty embedding."
+                )
+
+            if self.output_dimension is None:
+
+                self.output_dimension = len(values)
+
+                logger.info(
+                    "Ollama embedding dimension detected: %s",
+                    self.output_dimension
+                )
+
+            elif len(values) != self.output_dimension:
+
+                raise RuntimeError(
+                    "Ollama returned an embedding "
+                    f"with dimension {len(values)} "
+                    f"instead of "
+                    f"{self.output_dimension}."
+                )
+
+            return values
+
+        except requests.exceptions.RequestException as exc:
+
+            logger.exception(
+                "Ollama embedding request failed."
+            )
+
+            raise RuntimeError(
+                "Failed to connect to Ollama for embeddings. "
+                "Make sure Ollama is running and the embedding "
+                "model is available."
+            ) from exc
+
+    # ======================================================
     # EMBED MULTIPLE TEXTS
-    # =========================================================
+    # ======================================================
 
     def embed_texts(
         self,
@@ -260,29 +345,36 @@ class EmbeddingService:
         if not texts:
             return []
 
-        all_embeddings = []
-        total_texts = len(texts)
+        if self.provider == "ollama":
 
-        # Keep this conservative.
-        # If the SDK supports multiple contents correctly,
-        # this reduces the number of API requests significantly.
+            return [
+                self._embed_ollama(text)
+                for text in texts
+            ]
+
+        # Gemini batch embedding
+
+        all_embeddings = []
+
         batch_size = 10
 
-        print("Embedding started")
-        print(f"Total texts: {total_texts}")
-        print(f"Batch size: {batch_size}")
+        total_texts = len(texts)
 
-        for start in range(0, total_texts, batch_size):
+        logger.info(
+            "Embedding %s texts using Gemini in batches of %s.",
+            total_texts,
+            batch_size
+        )
 
-            batch = texts[start:start + batch_size]
+        for start in range(
+            0,
+            total_texts,
+            batch_size
+        ):
 
-            batch_start = start + 1
-            batch_end = start + len(batch)
-
-            print(
-                f"Embedding texts "
-                f"{batch_start}-{batch_end}/{total_texts}"
-            )
+            batch = texts[
+                start:start + batch_size
+            ]
 
             try:
 
@@ -294,49 +386,36 @@ class EmbeddingService:
                     )
                 )
 
-                # -------------------------------------------------
-                # Check whether Gemini returned one embedding
-                # for every input text.
-                # -------------------------------------------------
-
                 if (
                     not response.embeddings
                     or len(response.embeddings) != len(batch)
                 ):
-                    print(
-                        "Batch embedding response did not contain "
-                        "one embedding per text."
-                    )
 
-                    print(
-                        "Falling back to individual embedding requests "
-                        "for this batch..."
+                    logger.warning(
+                        "Gemini batch response was invalid. "
+                        "Falling back to individual requests."
                     )
 
                     for text in batch:
 
-                        embedding = self.embed_text(text)
-
-                        all_embeddings.append(embedding)
+                        all_embeddings.append(
+                            self._embed_gemini(text)
+                        )
 
                     continue
-
-                # -------------------------------------------------
-                # Validate every embedding
-                # -------------------------------------------------
-
-                batch_embeddings = []
 
                 for embedding in response.embeddings:
 
                     values = embedding.values
 
                     if not values:
+
                         raise RuntimeError(
                             "Gemini returned an empty embedding."
                         )
 
                     if len(values) != self.output_dimension:
+
                         raise RuntimeError(
                             "Gemini returned an embedding "
                             f"with dimension {len(values)} "
@@ -344,40 +423,35 @@ class EmbeddingService:
                             f"{self.output_dimension}."
                         )
 
-                    batch_embeddings.append(values)
-
-                all_embeddings.extend(batch_embeddings)
+                    all_embeddings.append(values)
 
             except APIError as exc:
 
                 if not self._is_retryable_error(exc):
                     raise
 
-                print(
-                    "Gemini API temporary error while "
-                    "processing an embedding batch."
-                )
-
-                # Use the existing retry logic by falling back
-                # to individual requests.
-                print(
-                    "Falling back to individual embedding "
-                    "requests for this batch..."
+                logger.warning(
+                    "Gemini batch embedding request failed "
+                    "temporarily. Falling back to individual "
+                    "requests."
                 )
 
                 for text in batch:
 
-                    embedding = self.embed_text(text)
+                    all_embeddings.append(
+                        self._embed_gemini(text)
+                    )
 
-                    all_embeddings.append(embedding)
-
-        print("Embedding generation completed.")
+        logger.info(
+            "Embedding generation completed: %s embeddings.",
+            len(all_embeddings)
+        )
 
         return all_embeddings
 
-    # =========================================================
+    # ======================================================
     # DOCUMENT EMBEDDING
-    # =========================================================
+    # ======================================================
 
     def embed_document(
         self,
@@ -390,13 +464,11 @@ class EmbeddingService:
             f"text: {text}"
         )
 
-        return self.embed_text(
-            content
-        )
+        return self.embed_text(content)
 
-    # =========================================================
+    # ======================================================
     # QUERY EMBEDDING
-    # =========================================================
+    # ======================================================
 
     def embed_query(
         self,
@@ -408,6 +480,4 @@ class EmbeddingService:
             f"query: {query}"
         )
 
-        return self.embed_text(
-            content
-        )
+        return self.embed_text(content)

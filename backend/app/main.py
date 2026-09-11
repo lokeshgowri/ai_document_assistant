@@ -243,7 +243,15 @@ async def ask_question(
             detail=str(exc)
         )
 
-    except RuntimeError:
+    except RuntimeError as exc:
+
+        error_message = str(exc)
+
+        if "quota" in error_message.lower():
+            raise HTTPException(
+                status_code=429,
+                detail=error_message
+            )
 
         raise HTTPException(
             status_code=500,
@@ -459,14 +467,20 @@ async def upload_document(
         )
 
         # -------------------------------------------------
-        # Automatically index all scoped documents
+        # Incrementally index ONLY this document
         # -------------------------------------------------
 
         global rag_service
 
         result = (
-            await indexing_service.build_index()
+            await indexing_service.incremental_index(
+                pathname
+            )
         )
+
+        # -------------------------------------------------
+        # Recreate RAG service using updated FAISS index
+        # -------------------------------------------------
 
         rag_service = RAGService(
             vector_store=(
@@ -476,6 +490,10 @@ async def upload_document(
                 indexing_service.embedding_service
             )
         )
+
+        # -------------------------------------------------
+        # Return result
+        # -------------------------------------------------
 
         return {
 
@@ -487,7 +505,9 @@ async def upload_document(
 
             "filename": file.filename,
 
-            "conversation_id": conversation_id
+            "conversation_id": conversation_id,
+
+            "indexing": result
 
         }
 
@@ -599,7 +619,7 @@ async def get_conversation(
 @app.delete(
     "/conversations/{conversation_id}",
     tags=["Conversations"],
-    summary="Soft delete a conversation"
+    summary="Delete a conversation and its documents"
 )
 async def delete_conversation(
     conversation_id: int,
@@ -607,6 +627,37 @@ async def delete_conversation(
 ):
 
     service = ConversationService(db)
+
+    # ---------------------------------------------------------
+    # Check whether conversation exists
+    # ---------------------------------------------------------
+
+    conversation = await service.get_conversation(
+        conversation_id
+    )
+
+    if not conversation:
+
+        raise HTTPException(
+            status_code=404,
+            detail="Conversation not found."
+        )
+
+    # ---------------------------------------------------------
+    # Delete conversation documents
+    # ---------------------------------------------------------
+
+    global indexing_service
+
+    document_result = (
+        await indexing_service.delete_conversation_documents(
+            conversation_id
+        )
+    )
+
+    # ---------------------------------------------------------
+    # Soft delete conversation
+    # ---------------------------------------------------------
 
     deleted = (
         await service.soft_delete_conversation(
@@ -621,12 +672,27 @@ async def delete_conversation(
             detail="Conversation not found."
         )
 
+    # ---------------------------------------------------------
+    # Return result
+    # ---------------------------------------------------------
+
     return {
 
         "status": "success",
 
         "message": (
-            "Conversation deleted successfully."
+            "Conversation and its documents "
+            "deleted successfully."
+        ),
+
+        "conversation_id": conversation_id,
+
+        "documents_deleted": (
+            document_result["documents_deleted"]
+        ),
+
+        "chunks_removed": (
+            document_result["chunks_removed"]
         )
     }
 

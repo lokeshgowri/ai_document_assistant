@@ -1,35 +1,59 @@
 import logging
-import os
 
-from dotenv import load_dotenv
 from google import genai
 from google.genai.errors import APIError
 
+from app.config import (
+    LLM_PROVIDER,
+    GEMINI_API_KEY,
+    LLM_MODEL,
+    OLLAMA_BASE_URL,
+    OLLAMA_LLM_MODEL,
+)
 
-load_dotenv()
 
 logger = logging.getLogger(__name__)
 
 
 class LLMService:
 
-    def __init__(
-        self,
-        model: str = "gemini-3.6-flash"
-    ):
+    def __init__(self):
 
-        self.model = model
+        self.provider = LLM_PROVIDER
 
-        api_key = os.getenv("GEMINI_API_KEY")
+        if self.provider == "gemini":
 
-        if not api_key:
-            raise RuntimeError(
-                "GEMINI_API_KEY is not configured in the environment."
+            if not GEMINI_API_KEY:
+                raise RuntimeError(
+                    "GEMINI_API_KEY is not configured."
+                )
+
+            self.model = LLM_MODEL
+
+            self.client = genai.Client(
+                api_key=GEMINI_API_KEY
             )
 
-        self.client = genai.Client(
-            api_key=api_key
-        )
+            logger.info(
+                "LLM provider initialized: Gemini (%s)",
+                self.model
+            )
+
+        elif self.provider == "ollama":
+
+            self.model = OLLAMA_LLM_MODEL
+            self.base_url = OLLAMA_BASE_URL
+
+            logger.info(
+                "LLM provider initialized: Ollama (%s)",
+                self.model
+            )
+
+        else:
+
+            raise RuntimeError(
+                f"Unsupported LLM provider: {self.provider}"
+            )
 
     def generate_answer(
         self,
@@ -83,10 +107,29 @@ USER QUESTION:
 ANSWER:
 """
 
+        if self.provider == "gemini":
+
+            return self._generate_with_gemini(prompt)
+
+        elif self.provider == "ollama":
+
+            return self._generate_with_ollama(prompt)
+
+        else:
+
+            raise RuntimeError(
+                f"Unsupported LLM provider: {self.provider}"
+            )
+
+    def _generate_with_gemini(
+        self,
+        prompt: str
+    ) -> str:
+
         try:
 
             logger.info(
-                "Sending question to Gemini model: %s",
+                "Sending request to Gemini model: %s",
                 self.model
             )
 
@@ -114,20 +157,101 @@ ANSWER:
                 "Gemini API request failed."
             )
 
+            error_message = str(exc).lower()
+
+            if (
+                "429" in error_message
+                or "resource_exhausted" in error_message
+                or "quota exceeded" in error_message
+                or "quotaexceeded" in error_message
+            ):
+
+                raise RuntimeError(
+                    "Gemini API quota has been exceeded. "
+                    "Please try again later or check your "
+                    "Gemini API quota and billing settings."
+                ) from exc
+
             raise RuntimeError(
                 "Failed to generate an answer using Gemini."
             ) from exc
 
         except RuntimeError:
+
             raise
 
         except Exception as exc:
 
             logger.exception(
-                "LLM request failed."
+                "Gemini LLM request failed."
             )
 
             raise RuntimeError(
-                "Failed to process the LLM request."
+                "Failed to process the Gemini LLM request."
             ) from exc
 
+    def _generate_with_ollama(
+        self,
+        prompt: str
+    ) -> str:
+
+        try:
+
+            import requests
+
+            logger.info(
+                "Sending request to Ollama model: %s",
+                self.model
+            )
+
+            response = requests.post(
+                f"{self.base_url}/api/generate",
+                json={
+                    "model": self.model,
+                    "prompt": prompt,
+                    "stream": False
+                },
+                timeout=120
+            )
+
+            response.raise_for_status()
+
+            data = response.json()
+
+            answer = data.get("response", "").strip()
+
+            if not answer:
+                raise RuntimeError(
+                    "Ollama returned an empty response."
+                )
+
+            logger.info(
+                "Ollama response generated successfully."
+            )
+
+            return answer
+
+        except RuntimeError:
+
+            raise
+
+        except requests.exceptions.RequestException as exc:
+
+            logger.exception(
+                "Ollama API request failed."
+            )
+
+            raise RuntimeError(
+                "Failed to connect to Ollama. "
+                "Make sure Ollama is running."
+            ) from exc
+
+        except Exception as exc:
+
+            logger.exception(
+                "Ollama LLM request failed."
+            )
+
+            raise RuntimeError(
+                "Failed to process the Ollama LLM request."
+            ) from exc
