@@ -174,6 +174,13 @@ async def ask_question(
     request: AskRequest,
     db: Session = Depends(get_db)
 ):
+    print(
+    "ASK REQUEST:",
+    {
+        "conversation_id": request.conversation_id,
+        "question": request.question
+    }
+)
 
     global rag_service
 
@@ -217,6 +224,7 @@ async def ask_question(
             role="user",
             content=request.question
             )
+        print("USER MESSAGE SAVE RESULT:", saved_user_message)
         if saved_user_message is None:
             raise HTTPException(
                 status_code=404,
@@ -270,6 +278,7 @@ async def ask_question(
             role="assistant",
             content=response["answer"]
             )
+        print("ASSISTANT MESSAGE SAVE RESULT:", saved_assistant_message)
         if saved_assistant_message is None:
             raise HTTPException(
                 status_code=500,
