@@ -182,14 +182,10 @@ async def ask_question(
     # -----------------------------------------------------
 
     if rag_service is None:
-            if request.conversation_id is None:
-                raise HTTPException(
-                    status_code=400,
-                    detail=(
-                        "A conversation is required "
-                        "to ask a question."
-                        )
-                        )
+        raise HTTPException(
+            status_code=503,
+            detail="Document index is not available. Please index the documents first."
+    )
 
     conversation_service = ConversationService(db)
 

@@ -1,5 +1,6 @@
 import json
 import os
+import asyncio
 from datetime import datetime, timezone
 
 from sqlalchemy.orm import Session
@@ -13,9 +14,24 @@ class ConversationService:
     def __init__(self, db: Session | None = None):
         self.db = db
         self.use_blob = os.getenv("VERCEL") == "1"
+        # Locks used to prevent concurrent Blob
+        #  # read-modify-write operations for the same conversation.
+        if not hasattr(ConversationService, "_conversation_locks"):
+            ConversationService._conversation_locks = {}
 
         if self.use_blob:
             self.blob_service = BlobStorageService()
+
+    def _get_conversation_lock(
+            self,
+            conversation_id: int
+            ):
+        locks = ConversationService._conversation_locks
+
+        if conversation_id not in locks:
+            locks[conversation_id] = asyncio.Lock()
+
+        return locks[conversation_id]
 
     # =========================================================
     # BLOB HELPERS
@@ -303,57 +319,55 @@ class ConversationService:
     ):
 
         if self.use_blob:
+            lock = self._get_conversation_lock(
+                conversation_id
+            )
+            async with lock:
 
-            conversation = (
-                await self._get_blob_conversation(
+                conversation = await self._get_blob_conversation(
                     conversation_id
                 )
-            )
+                if conversation is None:
+                    return None
 
-            if conversation is None:
-                return None
+                messages = conversation.setdefault(
+                    "messages",
+                    []
+                )
 
-            messages = conversation.setdefault(
-                "messages",
-                []
-            )
+                next_message_id = 1
 
-            next_message_id = 1
+                if messages:
 
-            if messages:
-                next_message_id = (
-                    max(
-                        message.get("id", 0)
-                        for message in messages
+                    next_message_id = (
+                        max(
+                            message.get("id", 0)
+                            for message in messages
+                        )
+                        + 1
                     )
-                    + 1
-                )
 
-            message = {
-                "id": next_message_id,
-                "conversation_id": conversation_id,
-                "role": role,
-                "content": content,
-                "created_at": (
-                    datetime.now(
-                        timezone.utc
-                    ).isoformat()
-                )
-            }
-
-            messages.append(message)
-
-            conversation["updated_at"] = (
-                datetime.now(
+                now = datetime.now(
                     timezone.utc
                 ).isoformat()
-            )
 
-            await self._save_blob_conversation(
-                conversation
-            )
+                message = {
+                    "id": next_message_id,
+                    "conversation_id": conversation_id,
+                    "role": role,
+                    "content": content,
+                    "created_at": now
+                }
 
-            return message
+                messages.append(message)
+
+                conversation["updated_at"] = now
+
+                await self._save_blob_conversation(
+                    conversation
+                )
+
+                return message
 
         message = Message(
             conversation_id=conversation_id,

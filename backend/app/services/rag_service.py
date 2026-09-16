@@ -81,44 +81,139 @@ class RAGService:
                 results = self.keyword_search.search(expanded_query, top_k=retrieval_k)
                 keyword_results.extend(results)
 
-            combined_results = []
-            seen_chunks = set()
+            # ---------------------------------------------------------
+            # HYBRID RETRIEVAL
+            # ---------------------------------------------------------
+
+            semantic_candidates = []
+            keyword_candidates = []
+
+            # -----------------------------
+            # Filter semantic results
+            # -----------------------------
 
             for result in semantic_results:
+
                 metadata = result["metadata"]
-                metadata_conversation_id = metadata.get("conversation_id")
+
+                metadata_conversation_id = metadata.get(
+                    "conversation_id"
+                )
 
                 if has_conversation_documents:
+
                     if metadata_conversation_id != conversation_id:
                         continue
+
                 else:
+
                     if metadata_conversation_id is not None:
                         continue
 
-                chunk_id = metadata.get("chunk_id", metadata.get("text"))
+                chunk_id = metadata.get(
+                    "chunk_id",
+                    metadata.get("text")
+                )
 
-                if chunk_id not in seen_chunks:
-                    result["retrieval_method"] = "semantic"
-                    combined_results.append(result)
-                    seen_chunks.add(chunk_id)
+                result["chunk_id"] = chunk_id
+                result["retrieval_method"] = "semantic"
+
+                semantic_candidates.append(result)
+
+            # -----------------------------
+            # Filter keyword results
+            # -----------------------------
 
             for result in keyword_results:
+
                 metadata = result["metadata"]
-                metadata_conversation_id = metadata.get("conversation_id")
+
+                metadata_conversation_id = metadata.get(
+                    "conversation_id"
+                )
 
                 if has_conversation_documents:
+
                     if metadata_conversation_id != conversation_id:
                         continue
+
                 else:
+
                     if metadata_conversation_id is not None:
                         continue
 
-                chunk_id = metadata.get("chunk_id", metadata.get("text"))
+                chunk_id = metadata.get(
+                    "chunk_id",
+                    metadata.get("text")
+                )
 
-                if chunk_id not in seen_chunks:
-                    result["retrieval_method"] = "keyword"
-                    combined_results.append(result)
-                    seen_chunks.add(chunk_id)
+                result["chunk_id"] = chunk_id
+                result["retrieval_method"] = "keyword"
+
+                keyword_candidates.append(result)
+
+            # ---------------------------------------------------------
+            # Reciprocal Rank Fusion
+            #
+            # We combine FAISS and BM25 using their ranking position
+            # instead of comparing their raw scores.
+            # ---------------------------------------------------------
+
+            RRF_K = 60
+
+            fused_results = {}
+
+            for rank, result in enumerate(
+                semantic_candidates,
+                start=1
+            ):
+
+                chunk_id = result["chunk_id"]
+
+                fused_results.setdefault(
+                    chunk_id,
+                    {
+                        "result": result,
+                        "score": 0.0
+                    }
+                )
+
+                fused_results[chunk_id]["score"] += (
+                    1.0 / (RRF_K + rank)
+                )
+
+            for rank, result in enumerate(
+                keyword_candidates,
+                start=1
+            ):
+
+                chunk_id = result["chunk_id"]
+
+                if chunk_id not in fused_results:
+
+                    fused_results[chunk_id] = {
+                        "result": result,
+                        "score": 0.0
+                    }
+
+                fused_results[chunk_id]["score"] += (
+                    1.0 / (RRF_K + rank)
+                )
+
+            # ---------------------------------------------------------
+            # Sort by combined hybrid relevance
+            # ---------------------------------------------------------
+
+            combined_results = sorted(
+                fused_results.values(),
+                key=lambda item: item["score"],
+                reverse=True
+            )
+
+            combined_results = [
+                item["result"]
+                for item in combined_results
+            ]
 
             filtered_results = []
             for result in combined_results:
@@ -180,32 +275,39 @@ Section: {metadata.get("section", "Unknown")}
             if answer.strip() == no_answer_message:
                 return {"answer": answer, "sources": []}
 
-            unique_sources = []
-            seen_sources = set()
+            # ---------------------------------------------------------
+            # RETURN ONLY THE STRONGEST MATCHED SOURCE
+            # ---------------------------------------------------------
 
-            for result in results:
-                metadata = result["metadata"]
+            best_source = None
+
+            if results:
+
+                best_result = results[0]
+
+                metadata = best_result["metadata"]
+
                 source_name = metadata.get("source")
 
-                if not source_name:
-                    continue
-                if source_name in seen_sources:
-                    continue
+                if source_name:
 
-                seen_sources.add(source_name)
-                unique_sources.append({
-                    "source": source_name,
-                    "text": metadata.get("text", "")
-                })
+                    best_source = {
+                        "source": source_name,
+                        "text": metadata.get("text", "")
+                    }
 
             return {
                 "answer": answer,
-                "sources": unique_sources
+                "sources": (
+                    [best_source]
+                    if best_source is not None
+                    else []
+                )
             }
 
         except ValueError:
             raise
-        
+
         except RuntimeError:
             raise
 
