@@ -14,7 +14,7 @@ let currentConversationId = null;
 // conversation in frontend memory.
 // This prevents UI refreshes from disturbing
 // the visible chat history.
-let currentMessages = [];
+let currentMessages = [];   
 
 
 // ========================================

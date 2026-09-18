@@ -24,8 +24,10 @@ from app.models.schemas import (
 )
 
 from app.services.conversation_service import ConversationService
+from app.services.memory_manager import MemoryManager
 from app.services.embeddings import EmbeddingService
 from app.services.indexing_service import IndexingService
+from app.services.cache_service import CacheService
 from app.services.rag_service import RAGService
 from app.services.blob_service import BlobStorageService
 
@@ -175,12 +177,12 @@ async def ask_question(
     db: Session = Depends(get_db)
 ):
     print(
-    "ASK REQUEST:",
-    {
-        "conversation_id": request.conversation_id,
-        "question": request.question
-    }
-)
+        "ASK REQUEST:",
+        {
+            "conversation_id": request.conversation_id,
+            "question": request.question
+        }
+    )
 
     global rag_service
 
@@ -192,13 +194,15 @@ async def ask_question(
         raise HTTPException(
             status_code=503,
             detail="Document index is not available. Please index the documents first."
-    )
+        )
 
     conversation_service = ConversationService(db)
 
     # -----------------------------------------------------
     # 1. Validate conversation
     # -----------------------------------------------------
+
+    conversation_history = []
 
     if request.conversation_id is not None:
 
@@ -209,7 +213,6 @@ async def ask_question(
         )
 
         if not conversation:
-
             raise HTTPException(
                 status_code=404,
                 detail="Conversation not found."
@@ -223,13 +226,37 @@ async def ask_question(
             conversation_id=request.conversation_id,
             role="user",
             content=request.question
-            )
-        print("USER MESSAGE SAVE RESULT:", saved_user_message)
+        )
+
+
         if saved_user_message is None:
             raise HTTPException(
                 status_code=404,
                 detail="Conversation no longer exists. Please start a new conversation."
-                )
+            )
+
+        # -------------------------------------------------
+        # Extract and save long-term memories
+        # -------------------------------------------------
+        memory_manager = MemoryManager(db)
+
+        saved_memories = memory_manager.process_user_message(
+             request.question
+             )
+
+        # -------------------------------------------------
+        # Get conversation history for memory
+        # -------------------------------------------------
+
+        conversation_history = await conversation_service.get_messages(
+            request.conversation_id
+        )
+
+        cache_service = CacheService()
+
+        corpus_signature = cache_service.create_corpus_signature(
+            rag_service.vector_store.metadata
+            )
 
     # -----------------------------------------------------
     # 2. Run RAG pipeline
@@ -237,13 +264,33 @@ async def ask_question(
 
     try:
 
-        response = rag_service.ask(
+        cached_response = await cache_service.get(
             question=request.question,
             top_k=request.top_k,
             source=request.source,
             section=request.section,
-            conversation_id=request.conversation_id
-        )
+            corpus_signature=corpus_signature,
+            )
+        if cached_response is not None:
+             response = cached_response
+        else:
+            response = rag_service.ask(
+                question=request.question,
+                top_k=request.top_k,
+                source=request.source,
+                section=request.section,
+                conversation_id=request.conversation_id,
+                conversation_history=conversation_history,
+                db=db
+                )
+            await cache_service.set(
+                question=request.question,
+                response=response,
+                top_k=request.top_k,
+                source=request.source,
+                section=request.section,
+                corpus_signature=corpus_signature,
+                )
 
     except ValueError as exc:
 
@@ -277,16 +324,16 @@ async def ask_question(
             conversation_id=request.conversation_id,
             role="assistant",
             content=response["answer"]
-            )
-        print("ASSISTANT MESSAGE SAVE RESULT:", saved_assistant_message)
+        )
+       
         if saved_assistant_message is None:
             raise HTTPException(
                 status_code=500,
                 detail="Failed to save assistant response."
-                )
+            )
 
     # -----------------------------------------------------
-    # 4. Return RAG response 
+    # 4. Return RAG response
     # -----------------------------------------------------
 
     return response

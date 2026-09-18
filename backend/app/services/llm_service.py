@@ -58,54 +58,98 @@ class LLMService:
     def generate_answer(
         self,
         question: str,
-        context: str
+        context: str,
+        conversation_history: str | None = None,
+        memories: list[dict] | None = None
     ) -> str:
+        formatted_history = self._format_conversation_history(
+            conversation_history
+            )
 
         prompt = f"""
 You are a strict document question-answering assistant.
 
-Your job is to answer the user's question using ONLY information
-contained in the provided document context.
+Your job is to answer the user's question using the provided
+document context and conversation history.
 
 IMPORTANT RULES:
 
-1. Answer ONLY the specific question asked by the user.
+1. Answer ONLY the specific current user question.
 
-2. Do NOT provide additional related information unless the user
-   explicitly asks for it.
+2. Use DOCUMENT CONTEXT as the ONLY source of truth for
+   document-related facts.
 
-3. Use ONLY facts explicitly stated in the document context.
+3. Use CONVERSATION HISTORY only to understand references,
+   follow-up questions, and what the user is referring to.
 
 4. Do NOT use outside knowledge.
 
-5. Do NOT guess, assume, or infer information that is not explicitly
-   supported by the document context.
+5. Do NOT invent facts.
 
-6. Do NOT calculate, convert, or reinterpret values unless the
-   document explicitly provides the required information.
+6. Do NOT assume information that is not supported by
+   DOCUMENT CONTEXT.
 
-7. Preserve numbers and units exactly as they appear in the document.
+7. For a follow-up question, first determine what the
+   current question is asking in relation to the previous
+   conversation.
 
-8. If the document context does not contain enough information to
-   answer the question, respond EXACTLY with:
+8. Do NOT simply repeat the answer given to the previous
+   question.
 
-"I could not find the answer in the provided documents."
+9. If the current question asks about what happens next,
+   what to do afterwards, who to inform, where to report,
+   or a subsequent step, look specifically for that
+   subsequent instruction in DOCUMENT CONTEXT.
 
-9. If the retrieved context is unrelated to the question, respond
-   with the same no-answer message.
+10. When multiple document sections are provided, choose
+    the section that directly answers the CURRENT question,
+    rather than automatically repeating information from
+    the previous question.
 
-10. Keep the answer short and direct.
+11. If the document directly answers the current question,
+    provide a short direct answer.
+
+12. If the document contains related information but does
+    not explicitly answer the exact question, clearly state
+    that the document does not explicitly specify the answer,
+    and mention only relevant information that is actually
+    stated.
+
+13. If DOCUMENT CONTEXT contains no relevant information
+    at all, respond EXACTLY with:
+
+    "I could not find the answer in the provided documents."
+
+14. Do not use LONG-TERM MEMORIES as a source of document
+    facts.
+
+15. Keep the answer short and direct.
+
+16. Do not repeatedly use phrases such as "According to the
+    document", "The document states", or "The policy states".
+    Answer naturally.
+
+CONVERSATION HISTORY:
+---------------------
+{formatted_history}
+---------------------
+
+LONG-TERM MEMORIES:
+-------------------
+{self._format_memories(memories)}
+-------------------
 
 DOCUMENT CONTEXT:
 -----------------
 {context}
 -----------------
 
-USER QUESTION:
+CURRENT USER QUESTION:
 {question}
 
 ANSWER:
 """
+       
 
         if self.provider == "gemini":
 
@@ -120,6 +164,61 @@ ANSWER:
             raise RuntimeError(
                 f"Unsupported LLM provider: {self.provider}"
             )
+    def generate_memory(self, prompt: str) -> str:
+
+        if self.provider == "gemini":
+            return self._generate_with_gemini(prompt)
+        
+        if self.provider == "ollama":
+            return self._generate_with_ollama(prompt)
+
+        raise ValueError(f"Unsupported LLM provider: {self.provider}")
+
+    def _format_conversation_history(
+            self,
+            conversation_history
+            ) -> str:
+        if not conversation_history:
+            return "No previous conversation."
+        formatted_messages = []
+        for message in conversation_history:
+            if isinstance(message, dict):
+                role = message.get("role", "")
+                content = (message.get("content") or "").strip()
+            else:
+                role = getattr(message, "role", "")
+                content = (getattr(message, "content", "") or "").strip()
+            if not content:
+                continue
+            if role == "user":
+                formatted_messages.append(
+                    f"User: {content}"
+                    )
+            elif role == "assistant":
+                formatted_messages.append(
+                    f"Assistant: {content}"
+                    )
+        if not formatted_messages:
+            return "No previous conversation."
+        return "\n".join(formatted_messages)
+
+    def _format_memories(
+            self,
+            memories: list[dict] | None
+            ) -> str:
+        if not memories:
+            return "No long-term memories."
+
+        formatted_memories = []
+        for memory in memories:
+            memory_text = memory.get("memory")
+            if memory_text:
+                formatted_memories.append(
+                    f"- {memory_text}"
+                    )
+        if not formatted_memories:
+            return "No long-term memories."
+        return "\n".join(formatted_memories)
 
     def _generate_with_gemini(
         self,
@@ -209,9 +308,13 @@ ANSWER:
                 json={
                     "model": self.model,
                     "prompt": prompt,
-                    "stream": False
+                    "stream": False,
+                    "options": {
+                        "temperature": 0,
+                        "seed": 42
+                    }
                 },
-                timeout=120
+                timeout=(10, 180)  # (connect timeout, read timeout)
             )
 
             response.raise_for_status()

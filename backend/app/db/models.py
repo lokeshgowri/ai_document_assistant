@@ -80,3 +80,39 @@ class Message(Base):
     conversation: Mapped["Conversation"] = relationship(
         back_populates="messages"
     )
+
+class Memory(Base):
+    __tablename__ = "memories"
+
+    id: Mapped[int] = mapped_column(
+        primary_key=True,
+        autoincrement=True
+    )
+
+    memory: Mapped[str] = mapped_column(
+        Text,
+        nullable=False
+    )
+
+    memory_type: Mapped[str] = mapped_column(
+        String(30),
+        nullable=False
+    )
+
+    importance: Mapped[int] = mapped_column(
+        nullable=False,
+        default=3
+    )
+
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        default=lambda: datetime.now(timezone.utc),
+        nullable=False
+    )
+
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        default=lambda: datetime.now(timezone.utc),
+        onupdate=lambda: datetime.now(timezone.utc),
+        nullable=False
+    )
