@@ -58,7 +58,7 @@ class MemoryService:
 
     def get_memories(
         self,
-        limit: int = 20
+        limit: int = 10
     ) -> list[Memory]:
 
         statement = (

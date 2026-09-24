@@ -1,5 +1,6 @@
 from contextlib import asynccontextmanager
 from pathlib import Path
+import asyncio
 
 from fastapi import (
     FastAPI,
@@ -13,7 +14,10 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from sqlalchemy.orm import Session
 
-from app.db.database import get_db
+from app.db.database import (
+    get_db,
+    SessionLocal
+)
 
 from app.models.schemas import (
     AskRequest,
@@ -43,6 +47,43 @@ indexing_service = IndexingService()
 blob_service = BlobStorageService()
 
 rag_service = None
+
+
+def run_rag_in_worker(
+    rag_instance,
+    question,
+    top_k,
+    source,
+    section,
+    conversation_id,
+    conversation_history
+):
+    """
+    Run the existing synchronous RAG pipeline
+    inside a worker thread.
+
+    A separate database session is created for
+    this worker because the request DB session
+    must not be shared across threads.
+    """
+
+    worker_db = SessionLocal()
+
+    try:
+
+        return rag_instance.ask(
+            question=question,
+            top_k=top_k,
+            source=source,
+            section=section,
+            conversation_id=conversation_id,
+            conversation_history=conversation_history,
+            db=worker_db
+        )
+
+    finally:
+
+        worker_db.close()
 
 
 # =========================================================
@@ -274,14 +315,17 @@ async def ask_question(
         if cached_response is not None:
              response = cached_response
         else:
-            response = rag_service.ask(
-                question=request.question,
-                top_k=request.top_k,
-                source=request.source,
-                section=request.section,
-                conversation_id=request.conversation_id,
-                conversation_history=conversation_history,
-                db=db
+            rag_instance = rag_service
+            response = await asyncio.to_thread(
+                run_rag_in_worker,
+                rag_instance,
+                request.question,
+                request.top_k,
+                request.source,
+                request.section,
+                request.conversation_id,
+                conversation_history
+
                 )
             await cache_service.set(
                 question=request.question,

@@ -739,3 +739,28 @@ body {
     }
 
 }
+
+/* ========================================
+   CONVERSATION STATUS DOT
+   ======================================== */
+
+.conversation-status-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    flex-shrink: 0;
+    margin-right: 8px;
+    display: inline-block;
+}
+
+/* Answer is currently being generated */
+.conversation-status-dot.generating {
+    background-color: #2563eb;
+    box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.15);
+}
+
+/* Answer finished in the background */
+.conversation-status-dot.completed {
+    background-color: #16a34a;
+    box-shadow: 0 0 0 2px rgba(22, 163, 74, 0.15);
+}

@@ -16,6 +16,46 @@ let currentConversationId = null;
 // the visible chat history.
 let currentMessages = [];   
 
+// Track questions that are currently being processed.
+// Each conversation can have its own active request.
+const pendingAskRequests = new Map();
+
+// Conversations whose background generation
+// finished while the user was viewing another chat.
+const completedAskRequests = new Set();
+
+// Keep a separate unsent question for each conversation.
+const conversationDrafts = new Map();
+
+// Keep the conversation list locally so switching
+// between conversations does not have to wait
+// for another API request before updating the UI.
+let conversationListCache = [];
+
+// Cache loaded message history for each conversation.
+// This lets us switch chats instantly without waiting
+// for the network request to finish.
+const conversationMessagesCache = new Map();
+
+// Changes every time the user switches conversations.
+// Older conversation-loading requests are ignored.
+let conversationSwitchToken = 0;
+
+function updateAskControls() {
+
+    const conversationIsProcessing =
+        currentConversationId !== null &&
+        pendingAskRequests.has(currentConversationId);
+
+    askButton.disabled = conversationIsProcessing;
+    attachButton.disabled = conversationIsProcessing;
+
+    askButton.textContent =
+        conversationIsProcessing
+            ? "Thinking..."
+            : "Ask";
+}
+
 
 // ========================================
 // HTML ELEMENTS
@@ -97,15 +137,22 @@ async function loadConversations() {
         const conversations =
             await apiRequest("/conversations");
 
+        conversationListCache =
+            conversations;
+
         renderConversationList(
             conversations
         );
 
         if (conversations.length > 0) {
 
-            await openConversation(
-                conversations[0].id
-            );
+            if (currentConversationId === null) {
+
+                await openConversation(
+                    conversations[0].id
+                );
+
+            }
 
         } else {
 
@@ -161,9 +208,7 @@ function renderConversationList(
         );
 
         return;
-
     }
-
 
     conversations.forEach(
         (conversation) => {
@@ -174,7 +219,6 @@ function renderConversationList(
             item.className =
                 "conversation-item";
 
-
             if (
                 conversation.id ===
                 currentConversationId
@@ -183,9 +227,7 @@ function renderConversationList(
                 item.classList.add(
                     "active"
                 );
-
             }
-
 
             const title =
                 document.createElement("span");
@@ -202,16 +244,56 @@ function renderConversationList(
                 "New Conversation";
 
 
-            title.addEventListener(
-                "click",
-                () => {
+            // ====================================
+            // STATUS DOT
+            // ====================================
 
-                    openConversation(
-                        conversation.id
-                    );
+            const statusDot =
+                document.createElement("span");
 
-                }
-            );
+            statusDot.className =
+                "conversation-status-dot";
+
+            const isCurrentConversation =
+                conversation.id ===
+                currentConversationId;
+
+            const isPending =
+                pendingAskRequests.has(
+                    conversation.id
+                );
+
+            const isCompleted =
+                completedAskRequests.has(
+                    conversation.id
+                );
+
+            if (
+                !isCurrentConversation &&
+                isPending
+            ) {
+
+                statusDot.classList.add(
+                    "generating"
+                );
+
+            } else if (
+                !isCurrentConversation &&
+                isCompleted
+            ) {
+
+                statusDot.classList.add(
+                    "completed"
+                );
+            }
+
+
+            // ====================================
+            // BUILD CONVERSATION ITEM
+            // ====================================
+
+            item.appendChild(statusDot);
+            item.appendChild(title);
 
 
             const deleteButton =
@@ -245,10 +327,6 @@ function renderConversationList(
 
 
             item.appendChild(
-                title
-            );
-
-            item.appendChild(
                 deleteButton
             );
 
@@ -271,7 +349,6 @@ function renderConversationList(
 
         }
     );
-
 }
 
 
@@ -305,26 +382,41 @@ async function createConversation() {
         currentConversationId =
             conversation.id;
 
+        completedAskRequests.delete(
+            conversation.id
+        );
+
         currentMessages = [];
+
+        conversationMessagesCache.set(
+            conversation.id,
+            []
+        );
+
+        conversationDrafts.set(
+            conversation.id,
+            ""
+        );
 
         chatTitle.textContent =
             conversation.title ||
             "New Conversation";
 
+        questionInput.value = "";
+
         clearMessages();
 
         renderWelcomeMessage();
 
-
-        const conversations =
-            await apiRequest(
-                "/conversations"
-            );
+        // Refresh the sidebar without blocking
+        // the newly selected conversation.
+        await refreshConversationList();
 
         renderConversationList(
-            conversations
+            conversationListCache
         );
 
+        updateAskControls();
 
     } catch (error) {
 
@@ -355,21 +447,114 @@ async function openConversation(
     conversationId
 ) {
 
-    // If the user clicks the already-open
-    // conversation, do nothing.
-    //
-    // This prevents unnecessary reloads
-    // of the current chat.
-
     if (
         conversationId ===
         currentConversationId
     ) {
-
         return;
-
     }
 
+    const previousConversationId =
+        currentConversationId;
+
+    if (
+        previousConversationId !== null
+    ) {
+
+        conversationDrafts.set(
+            previousConversationId,
+            questionInput.value
+        );
+    }
+
+    // ----------------------------------------
+    // SWITCH THE UI FIRST.
+    // No network request is awaited here
+    // before the selected conversation changes.
+    // ----------------------------------------
+
+    currentConversationId =
+        conversationId;
+
+    conversationSwitchToken += 1;
+
+    const switchToken =
+        conversationSwitchToken;
+
+    completedAskRequests.delete(
+        conversationId
+    );
+
+    const conversationSummary =
+        conversationListCache.find(
+            (conversation) =>
+                conversation.id ===
+                conversationId
+        );
+
+    chatTitle.textContent =
+        conversationSummary?.title ||
+        "New Conversation";
+
+    questionInput.value =
+        conversationDrafts.get(
+            conversationId
+        ) || "";
+
+    // ----------------------------------------
+    // Use cached history immediately.
+    // ----------------------------------------
+
+    const cachedMessages =
+        conversationMessagesCache.get(
+            conversationId
+        );
+
+    currentMessages =
+        Array.isArray(cachedMessages)
+            ? cachedMessages.map(
+                (message) => ({
+                    role: message.role,
+                    content: message.content
+                })
+            )
+            : [];
+
+    renderConversationList(
+        conversationListCache
+    );
+
+    renderCurrentMessages();
+
+    // ----------------------------------------
+    // If this conversation is already generating,
+    // show Thinking immediately.
+    // ----------------------------------------
+
+    if (
+        pendingAskRequests.has(
+            conversationId
+        )
+    ) {
+
+        const requestState =
+            pendingAskRequests.get(
+                conversationId
+            );
+
+        requestState.loadingMessage =
+            addMessageToUI(
+                "Thinking...",
+                "assistant"
+            );
+    }
+
+    updateAskControls();
+
+    // ----------------------------------------
+    // Load the latest history in the background.
+    // This NEVER blocks conversation switching.
+    // ----------------------------------------
 
     try {
 
@@ -378,22 +563,19 @@ async function openConversation(
                 `/conversations/${conversationId}`
             );
 
+        // The user switched again.
+        // Ignore this response completely.
+        if (
+            switchToken !==
+                conversationSwitchToken ||
+            currentConversationId !==
+                conversationId
+        ) {
 
-        currentConversationId =
-            conversation.id;
+            return;
+        }
 
-
-        chatTitle.textContent =
-            conversation.title ||
-            "New Conversation";
-
-
-        // ------------------------------------
-        // Store complete conversation history
-        // locally for the current chat.
-        // ------------------------------------
-
-        currentMessages =
+        const serverMessages =
             Array.isArray(
                 conversation.messages
             )
@@ -405,24 +587,81 @@ async function openConversation(
                 )
                 : [];
 
-
-        renderCurrentMessages();
-
-
-        const conversations =
-            await apiRequest(
-                "/conversations"
-            );
-
-        renderConversationList(
-            conversations
+        conversationMessagesCache.set(
+            conversationId,
+            serverMessages
         );
 
+        chatTitle.textContent =
+            conversation.title ||
+            chatTitle.textContent ||
+            "New Conversation";
+
+        // ----------------------------------------
+        // If a request is currently running,
+        // preserve the local UI because it contains
+        // the question that is being processed and
+        // the Thinking message.
+        // ----------------------------------------
+
+        if (
+            !pendingAskRequests.has(
+                conversationId
+            )
+        ) {
+
+            currentMessages =
+                serverMessages;
+
+            renderCurrentMessages();
+
+        }
+
+        questionInput.value =
+            conversationDrafts.get(
+                conversationId
+            ) || "";
+
+        // Re-add Thinking after a history render.
+        if (
+            pendingAskRequests.has(
+                conversationId
+            )
+        ) {
+
+            const requestState =
+                pendingAskRequests.get(
+                    conversationId
+                );
+
+            // The request state may already point
+            // to an older DOM element if the history
+            // was rendered again.
+            if (
+                !requestState.loadingMessage ||
+                !requestState.loadingMessage.isConnected
+            ) {
+
+                requestState.loadingMessage =
+                    addMessageToUI(
+                        "Thinking...",
+                        "assistant"
+                    );
+
+            }
+
+        }
+
+        updateAskControls();
 
     } catch (error) {
 
-        alert(
-            `Could not load conversation: ${error.message}`
+        // Do not move the user back to another
+        // conversation just because this background
+        // history request failed.
+        console.error(
+            `Could not load conversation ${conversationId}:`,
+            error
         );
 
     }
@@ -532,6 +771,8 @@ async function deleteConversation(
 
 function resetChat() {
 
+    conversationSwitchToken += 1;
+
     currentConversationId = null;
 
     currentMessages = [];
@@ -539,9 +780,13 @@ function resetChat() {
     chatTitle.textContent =
         "New Conversation";
 
+    questionInput.value = "";
+
     clearMessages();
 
     renderWelcomeMessage();
+
+    updateAskControls();
 
 }
 
@@ -635,16 +880,23 @@ async function askQuestion() {
     const question =
         questionInput.value.trim();
 
-
     if (!question) {
-
         return;
-
     }
 
+    // Do not start another request for the
+    // same conversation while one is running.
+    if (
+        currentConversationId !== null &&
+        pendingAskRequests.has(
+            currentConversationId
+        )
+    ) {
+        return;
+    }
 
-    let loadingMessage = null;
-
+    let requestConversationId =
+        currentConversationId;
 
     try {
 
@@ -654,7 +906,7 @@ async function askQuestion() {
         // ------------------------------------
 
         if (
-            currentConversationId ===
+            requestConversationId ===
             null
         ) {
 
@@ -676,62 +928,97 @@ async function askQuestion() {
                     }
                 );
 
-
-            currentConversationId =
+            requestConversationId =
                 conversation.id;
 
+            currentConversationId =
+                requestConversationId;
 
             currentMessages = [];
 
+            conversationMessagesCache.set(
+                requestConversationId,
+                []
+            );
 
             chatTitle.textContent =
                 conversation.title ||
                 "New Conversation";
 
+            clearMessages();
+
+            renderWelcomeMessage();
+
+            await refreshConversationList();
+
         }
 
-
         // ------------------------------------
-        // Add user's question to local history
+        // Add user question to this conversation.
         // ------------------------------------
 
-        const userMessage = {
+        currentMessages.push({
             role: "user",
             content: question
-        };
+        });
 
-        currentMessages.push(
-            userMessage
+        conversationMessagesCache.set(
+            requestConversationId,
+            currentMessages.map(
+                (message) => ({
+                    role: message.role,
+                    content: message.content
+                })
+            )
         );
-
 
         addMessageToUI(
             question,
             "user"
         );
 
-
         questionInput.value = "";
 
-
-        askButton.disabled = true;
-
-        attachButton.disabled = true;
-
-        askButton.textContent =
-            "Thinking...";
-
+        conversationDrafts.set(
+            requestConversationId,
+            ""
+        );
 
         // ------------------------------------
-        // Add temporary assistant message
+        // Create temporary assistant message.
         // ------------------------------------
 
-        loadingMessage =
+        const loadingMessage =
             addMessageToUI(
                 "Thinking...",
                 "assistant"
             );
 
+        // ------------------------------------
+        // Store request state by conversation.
+        // ------------------------------------
+
+        pendingAskRequests.set(
+            requestConversationId,
+            {
+                loadingMessage
+            }
+        );
+
+        // Update the blue dot immediately.
+        renderConversationList(
+            conversationListCache
+        );
+
+        updateAskControls();
+
+        // ------------------------------------
+        // Send the request.
+        //
+        // IMPORTANT:
+        // Always use requestConversationId.
+        // Never use currentConversationId.
+        // ------------------------------------
 
         const data =
             await apiRequest(
@@ -745,81 +1032,120 @@ async function askQuestion() {
                     },
 
                     body: JSON.stringify({
+                        question:
+                            question,
 
-                        question: question,
-
-                        top_k: 3,
+                        top_k:
+                            3,
 
                         conversation_id:
-                            currentConversationId
-
+                            requestConversationId
                     })
                 }
             );
-
 
         const answer =
             data.answer ||
             "No answer returned.";
 
+        const requestState =
+            pendingAskRequests.get(
+                requestConversationId
+            );
 
         // ------------------------------------
-        // Update assistant UI
-        // ------------------------------------
-
-        updateAssistantMessage(
-            loadingMessage,
-            answer
-        );
-
-
-        // ------------------------------------
-        // Replace temporary assistant
-        // message with the real one in
-        // local history.
-        // ------------------------------------
-
-        currentMessages.push({
-            role: "assistant",
-            content: answer
-        });
-
-
-        // ------------------------------------
-        // Add sources
+        // Update the visible UI only when the
+        // user is currently viewing this chat.
         // ------------------------------------
 
         if (
-            data.sources &&
-            data.sources.length > 0
+            currentConversationId ===
+                requestConversationId &&
+            requestState
         ) {
 
-            addSources(
-                loadingMessage,
-                data.sources
+            updateAssistantMessage(
+                requestState.loadingMessage,
+                answer
+            );
+
+            currentMessages.push({
+                role: "assistant",
+                content: answer
+            });
+
+            conversationMessagesCache.set(
+                requestConversationId,
+                currentMessages.map(
+                    (message) => ({
+                        role: message.role,
+                        content: message.content
+                    })
+                )
+            );
+
+            if (
+                data.sources &&
+                data.sources.length > 0
+            ) {
+
+                addSources(
+                    requestState.loadingMessage,
+                    data.sources
+                );
+
+            }
+
+        } else {
+
+            // --------------------------------
+            // User is viewing another chat.
+            // Keep the completed answer in the
+            // background conversation cache.
+            // --------------------------------
+
+            const backgroundMessages =
+                conversationMessagesCache.get(
+                    requestConversationId
+                ) || [];
+
+            backgroundMessages.push({
+                role: "assistant",
+                content: answer
+            });
+
+            conversationMessagesCache.set(
+                requestConversationId,
+                backgroundMessages.map(
+                    (message) => ({
+                        role: message.role,
+                        content: message.content
+                    })
+                )
             );
 
         }
 
-
-        // ------------------------------------
         // Refresh only the sidebar.
-        //
-        // IMPORTANT:
-        // We do NOT reload the conversation.
-        // Therefore the visible chat history
-        // stays untouched.
-        // ------------------------------------
-
-        await refreshConversationList();
-
+        refreshConversationList();
 
     } catch (error) {
 
-        if (loadingMessage) {
+        const requestState =
+            requestConversationId !== null
+                ? pendingAskRequests.get(
+                    requestConversationId
+                )
+                : null;
+
+        if (
+            currentConversationId ===
+                requestConversationId &&
+            requestState
+        ) {
 
             updateAssistantMessage(
-                loadingMessage,
+                requestState.loadingMessage,
                 `Unable to process the question: ${error.message}`
             );
 
@@ -832,15 +1158,49 @@ async function askQuestion() {
 
         }
 
-
     } finally {
 
-        askButton.disabled = false;
+        if (
+            requestConversationId !==
+            null
+        ) {
 
-        attachButton.disabled = false;
+            const userIsViewingThisConversation =
+                currentConversationId ===
+                requestConversationId;
 
-        askButton.textContent =
-            "Ask";
+            pendingAskRequests.delete(
+                requestConversationId
+            );
+
+            if (
+                !userIsViewingThisConversation
+            ) {
+
+                completedAskRequests.add(
+                    requestConversationId
+                );
+
+            } else {
+
+                completedAskRequests.delete(
+                    requestConversationId
+                );
+
+            }
+
+            // Update the status dot immediately.
+            renderConversationList(
+                conversationListCache
+            );
+
+            updateAskControls();
+
+            // Refresh sidebar data in the background.
+            // Do not wait for it.
+            refreshConversationList();
+
+        }
 
     }
 
@@ -860,17 +1220,12 @@ async function refreshConversationList() {
                 "/conversations"
             );
 
-
-        // Only update the sidebar.
-        //
-        // Do NOT call openConversation()
-        // here because doing so would replace
-        // the current chat UI.
+        conversationListCache =
+            conversations;
 
         renderConversationList(
             conversations
         );
-
 
     } catch {
 
@@ -1152,9 +1507,21 @@ documentInput.addEventListener(
                 currentConversationId =
                     conversation.id;
 
+                completedAskRequests.delete(
+                    conversation.id
+                );
 
                 currentMessages = [];
 
+                conversationMessagesCache.set(
+                    conversation.id,
+                    []
+                );
+
+                conversationDrafts.set(
+                    conversation.id,
+                    ""
+                );
 
                 chatTitle.textContent =
                     conversation.title ||
