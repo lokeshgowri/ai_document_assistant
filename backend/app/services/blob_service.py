@@ -1,15 +1,18 @@
 import os
+from dataclasses import dataclass
 
 from vercel.blob import AsyncBlobClient
+
+
+@dataclass
+class BlobFileResult:
+    content: bytes
 
 
 class BlobStorageService:
 
     def __init__(self):
-
-        token = os.getenv(
-            "BLOB_READ_WRITE_TOKEN"
-        )
+        token = os.getenv("BLOB_READ_WRITE_TOKEN")
 
         if not token:
             raise RuntimeError(
@@ -27,7 +30,6 @@ class BlobStorageService:
         content_type: str | None = None,
         overwrite: bool = False
     ):
-
         return await self.client.put(
             pathname,
             data,
@@ -41,17 +43,27 @@ class BlobStorageService:
         self,
         pathname: str
     ):
-
-        return await self.client.get(
+        result = await self.client.get(
             pathname,
             access="private"
+        )
+
+        if result is None:
+            return None
+
+        content = bytearray()
+
+        async for chunk in result.stream:
+            content.extend(chunk)
+
+        return BlobFileResult(
+            content=bytes(content)
         )
 
     async def list_files(
         self,
         prefix: str | None = None
     ):
-
         return await self.client.list_objects(
             prefix=prefix
         )
@@ -60,7 +72,6 @@ class BlobStorageService:
         self,
         pathname: str
     ):
-
         await self.client.delete(
             pathname
         )
