@@ -9,6 +9,7 @@ from app.services.document_loader import load_document
 from app.services.embeddings import EmbeddingService
 from app.services.text_cleaner import clean_text
 from app.services.vector_store import VectorStore
+from langchain_core.documents import Document
 
 
 class IndexingService:
@@ -90,6 +91,40 @@ class IndexingService:
                 sha256.update(chunk)
 
         return sha256.hexdigest()
+
+    @staticmethod
+    def _create_langchain_documents(
+        chunks: list[dict],
+        source_name: str,
+        pathname: str,
+        document_hash: str,
+        document_type: str,
+        conversation_id: int | None,
+        ) -> list[Document]:
+
+        documents = []
+
+        for chunk_index, chunk in enumerate(chunks):
+
+            document = Document(
+                page_content=chunk["text"],
+                metadata={
+                    "source": source_name,
+                    "document_path": pathname,
+                    "document_hash": document_hash,
+                    "section": chunk["section"],
+                    "document_type": document_type,
+                    "chunk_id": (
+                        f"{document_hash}"
+                        f"_chunk_{chunk_index}"
+                    ),
+                    "conversation_id": conversation_id,
+                    }
+                )
+
+            documents.append(document)
+
+        return documents
 
     # ---------------------------------------------------------
     # DETERMINE DOCUMENT SCOPE
@@ -209,6 +244,14 @@ class IndexingService:
                 source_name = Path(
                     pathname
                 ).name
+                documents = self._create_langchain_documents(
+                    chunks=chunks,
+                    source_name=source_name,
+                    pathname=pathname,
+                    document_hash=document_hash,
+                    document_type=extension.lstrip("."),
+                    conversation_id=conversation_id,
+                )
 
                 for chunk_index, chunk in enumerate(
                     chunks
@@ -455,29 +498,22 @@ class IndexingService:
                 pathname
             ).name
 
-            metadata = []
+            documents = self._create_langchain_documents(
+                chunks=chunks,
+                source_name=source_name,
+                pathname=pathname,
+                document_hash=document_hash,
+                document_type=extension.lstrip("."),
+                conversation_id=conversation_id,
+            )
 
-            for chunk_index, chunk in enumerate(
-                chunks
-            ):
-
-                metadata.append(
-                    {
-                        "source": source_name,
-                        "document_path": pathname,
-                        "document_hash": document_hash,
-                        "section": chunk["section"],
-                        "document_type": (
-                            extension.lstrip(".")
-                        ),
-                        "chunk_id": (
-                            f"{document_hash}"
-                            f"_chunk_{chunk_index}"
-                        ),
-                        "text": chunk["text"],
-                        "conversation_id": conversation_id,
-                    }
-                )
+            metadata = [
+                {
+                **document.metadata,
+                "text": document.page_content,
+                }
+                for document in documents
+            ]
 
             # -------------------------------------------------
             # Generate embeddings ONLY for this document

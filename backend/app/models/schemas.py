@@ -32,18 +32,27 @@ class AskRequest(BaseModel):
         description="Conversation to which this question belongs."
     )
 
+    save_to_conversation: bool = Field(
+        default=True,
+        description="Whether to save this question and answer to the conversation."
+    )
+
 
 class Source(BaseModel):
 
     source: str
+
     text: str
 
 
 class AskResponse(BaseModel):
 
     answer: str
-    sources: list[Source]
 
+    sources: list[Source] = Field(
+        default_factory=list
+    )
+    
 from pydantic import BaseModel, ConfigDict
 
 

@@ -1,9 +1,9 @@
 import traceback
-from app.services.llm_service import LLMService
-from app.services.vector_store import VectorStore
 from app.services.keyword_search import KeywordSearch
-from app.services.query_processor import QueryProcessor
+from app.services.llm_service import LLMService
 from app.services.memory_manager import MemoryManager
+from app.services.query_processor import QueryProcessor
+from app.services.vector_store import VectorStore
 
 
 class RAGService:
@@ -17,7 +17,7 @@ class RAGService:
             getattr(self.vector_store, "metadata", [])
         )
 
-    def ask(
+    def retrieve_documents(
         self,
         question: str,
         top_k: int = 3,
@@ -26,8 +26,7 @@ class RAGService:
         distance_threshold: float | None = None,
         conversation_id: int | None = None,
         conversation_history: list[dict] | None = None,
-        db=None
-    ) -> dict:
+    ) -> list[dict]:
 
         if not question or not question.strip():
             raise ValueError("Question cannot be empty.")
@@ -38,52 +37,47 @@ class RAGService:
         if top_k <= 0:
             raise ValueError("top_k must be greater than 0.")
 
-        question = self.query_processor.process(question)
         # --------------------------------------------------------
         # Build context-aware retrieval query
-        # ---------------------------------------------------------
-        retrieval_question = question
-        if conversation_history:
-            previous_user_question = None
-            previous_assistant_answer = None
+        # --------------------------------------------------------
 
-            for message in conversation_history[:-1]:
-                if isinstance(message, dict):
-                    role = message.get("role")
-                    content = (message.get("content") or "").strip()
-                else:
-                    role = message.role
-                    content = (message.content or "").strip()
-                if not content:
-                    continue
-                if role == "user":
-                    previous_user_question = content
-                elif role == "assistant":
-                    previous_assistant_answer = content
-            retrieval_parts = []
-            if previous_user_question:
-                retrieval_parts.append(
-                    f"Previous user question: {previous_user_question}"
+        retrieval_question = question
+
+        if conversation_history:
+            previous_user_questions = [
+                (
+                    message.get("content", "").strip()
+                    if isinstance(message, dict)
+                    else (message.content or "").strip()
+                )
+                for message in conversation_history[:-1]
+                if (
+                    (
+                        message.get("role") == "user"
+                        if isinstance(message, dict)
+                        else message.role == "user"
                     )
-            if previous_assistant_answer:
-                retrieval_parts.append(
-                    f"Previous assistant answer: {previous_assistant_answer}"
+                    and (
+                        message.get("content")
+                        if isinstance(message, dict)
+                        else message.content
                     )
-            retrieval_parts.append(
-                    f"Current user question: {question}"
-                    )
-            retrieval_question = "\n".join(retrieval_parts)
+                )
+            ]
+
+            if previous_user_questions:
+                previous_question = previous_user_questions[-1]
+                retrieval_question = f"{previous_question} {question}"
+      
 
         try:
             has_conversation_documents = any(
                 metadata.get("conversation_id") == conversation_id
                 for metadata in self.vector_store.metadata
             )
-          
 
-            query_vector = self.embedding_service.embed_text(
-                retrieval_question
-                )
+            query_vector = self.embedding_service.embed_text(retrieval_question)
+
             retrieval_k = max(10, len(self.vector_store.metadata))
 
             if distance_threshold is None:
@@ -99,8 +93,9 @@ class RAGService:
                     conversation_id=(
                         conversation_id if has_conversation_documents else None
                     ),
-                    global_only=(not has_conversation_documents)
+                    global_only=(not has_conversation_documents),
                 )
+
             except TypeError:
                 semantic_results = self.vector_store.search(
                     query_vector,
@@ -110,16 +105,17 @@ class RAGService:
                     conversation_id=(
                         conversation_id if has_conversation_documents else None
                     ),
-                    global_only=(not has_conversation_documents)
+                    global_only=(not has_conversation_documents),
                 )
 
-            expanded_queries = self.query_processor.expand(
-                retrieval_question
-                )
+            expanded_queries = self.query_processor.expand(retrieval_question)
 
             keyword_results = []
+
             for expanded_query in expanded_queries:
-                results = self.keyword_search.search(expanded_query, top_k=retrieval_k)
+                results = self.keyword_search.search(
+                    expanded_query, top_k=retrieval_k
+                )
                 keyword_results.extend(results)
 
             # ---------------------------------------------------------
@@ -173,58 +169,110 @@ class RAGService:
             for rank, result in enumerate(semantic_candidates, start=1):
                 chunk_id = result["chunk_id"]
                 fused_results.setdefault(
-                    chunk_id,
-                    {"result": result, "score": 0.0}
+                    chunk_id, {"result": result, "score": 0.0}
                 )
                 fused_results[chunk_id]["score"] += 1.0 / (RRF_K + rank)
 
             for rank, result in enumerate(keyword_candidates, start=1):
                 chunk_id = result["chunk_id"]
                 if chunk_id not in fused_results:
-                    fused_results[chunk_id] = {
-                        "result": result,
-                        "score": 0.0
-                    }
+                    fused_results[chunk_id] = {"result": result, "score": 0.0}
                 fused_results[chunk_id]["score"] += 1.0 / (RRF_K + rank)
 
             # Sort by combined hybrid relevance
             combined_results = sorted(
                 fused_results.values(),
                 key=lambda item: item["score"],
-                reverse=True
+                reverse=True,
             )
+
             combined_results = [item["result"] for item in combined_results]
 
+            # ---------------------------------------------------------
+            # Apply source / section filters
+            # ---------------------------------------------------------
+
             filtered_results = []
+
             for result in combined_results:
                 metadata = result["metadata"]
 
                 if source:
                     metadata_source = metadata.get("source")
-                    if not metadata_source or source.lower() not in metadata_source.lower():
+                    if (
+                        not metadata_source
+                        or source.lower() not in metadata_source.lower()
+                    ):
                         continue
 
                 if section:
                     metadata_section = metadata.get("section")
-                    if not metadata_section or section.lower() not in metadata_section.lower():
+                    if (
+                        not metadata_section
+                        or section.lower() not in metadata_section.lower()
+                    ):
                         continue
 
                 filtered_results.append(result)
 
-            combined_results = filtered_results           
+            combined_results = filtered_results
 
-            if not combined_results:
-                return {
-                    "answer": "I could not find the answer in the provided documents.",
-                    "sources": []
-                }
+            # ---------------------------------------------------------
+            # Return top results
+            # ---------------------------------------------------------
 
-            results = combined_results[:top_k]
+            return combined_results[:top_k]
+
+        except ValueError:
+            raise
+
+        except RuntimeError:
+            raise
+
+        except Exception as exc:
+            raise RuntimeError("Failed to retrieve documents.") from exc
+
+    def ask(
+        self,
+        question: str,
+        top_k: int = 3,
+        source: str | None = None,
+        section: str | None = None,
+        distance_threshold: float | None = None,
+        conversation_id: int | None = None,
+        conversation_history: list[dict] | None = None,
+        db=None,
+    ) -> dict:
+
+        try:
+            if not question or not question.strip():
+                raise ValueError("Question cannot be empty.")
+
+            if conversation_id is None:
+                raise ValueError("conversation_id is required.")
+
+            if top_k <= 0:
+                raise ValueError("top_k must be greater than 0.")
+
+            question = self.query_processor.process(question)
+
+            results = self.retrieve_documents(
+                question=question,
+                top_k=top_k,
+                source=source,
+                section=section,
+                distance_threshold=distance_threshold,
+                conversation_id=conversation_id,
+                conversation_history=conversation_history,
+            )
 
             if not results:
                 return {
-                    "answer": "I could not find the answer in the provided documents.",
-                    "sources": []
+                    "answer": (
+                        "I could not find the answer in the provided"
+                        " documents."
+                    ),
+                    "sources": [],
                 }
 
             context_parts = []
@@ -240,19 +288,19 @@ class RAGService:
 
             memories = []
             if db is not None:
-                 memory_manager = MemoryManager(db)
-                 memories = memory_manager.get_relevant_memories(
-                      limit=10
-                      )
+                memory_manager = MemoryManager(db)
+                memories = memory_manager.get_relevant_memories(limit=10)
 
             answer = self.llm_service.generate_answer(
                 question=question,
                 context=context,
                 conversation_history=conversation_history,
-                memories=memories
+                memories=memories,
             )
 
-            no_answer_message = "I could not find the answer in the provided documents."
+            no_answer_message = (
+                "I could not find the answer in the provided documents."
+            )
 
             if answer.strip() == no_answer_message:
                 return {"answer": answer, "sources": []}
@@ -266,12 +314,12 @@ class RAGService:
                 if source_name:
                     best_source = {
                         "source": source_name,
-                        "text": metadata.get("text", "")
+                        "text": metadata.get("text", ""),
                     }
 
             return {
                 "answer": answer,
-                "sources": [best_source] if best_source is not None else []
+                "sources": [best_source] if best_source is not None else [],
             }
 
         except ValueError:

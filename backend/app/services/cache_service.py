@@ -57,6 +57,7 @@ class CacheService:
         source: str | None = None,
         section: str | None = None,
         corpus_signature: str = "",
+        conversation_id: int | None = None,
     ) -> str:
         """
         Create a stable cache key from everything that can affect
@@ -69,6 +70,7 @@ class CacheService:
             "source": source.strip().lower() if source else None,
             "section": section.strip().lower() if section else None,
             "corpus_signature": corpus_signature,
+            "conversation_id": conversation_id,
         }
 
         serialized = json.dumps(
@@ -91,6 +93,7 @@ class CacheService:
         source: str | None = None,
         section: str | None = None,
         corpus_signature: str = "",
+        conversation_id: int | None = None,
     ):
         """
         Return cached response if available.
@@ -103,6 +106,7 @@ class CacheService:
             source=source,
             section=section,
             corpus_signature=corpus_signature,
+            conversation_id=conversation_id,
         )
 
         pathname = self._cache_path(cache_key)
@@ -129,6 +133,7 @@ class CacheService:
         source: str | None = None,
         section: str | None = None,
         corpus_signature: str = "",
+        conversation_id: int | None = None,
     ):
         """
         Save a successful RAG response to the persistent cache.
@@ -140,6 +145,7 @@ class CacheService:
             source=source,
             section=section,
             corpus_signature=corpus_signature,
+            conversation_id=conversation_id,
         )
 
         pathname = self._cache_path(cache_key)

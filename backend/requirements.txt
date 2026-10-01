@@ -29,3 +29,7 @@ vercel
 sqlalchemy
 
 requests
+
+langchain
+
+langchain-ollama

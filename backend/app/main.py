@@ -14,10 +14,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from sqlalchemy.orm import Session
 
-from app.db.database import (
-    get_db,
-    SessionLocal
-)
+from app.db.database import get_db
 
 from app.models.schemas import (
     AskRequest,
@@ -29,18 +26,19 @@ from app.models.schemas import (
 
 from app.services.conversation_service import ConversationService
 from app.services.memory_manager import MemoryManager
-from app.services.embeddings import EmbeddingService
+from app.services.llm_service import LLMService
 from app.services.indexing_service import IndexingService
 from app.services.cache_service import CacheService
 from app.services.rag_service import RAGService
 from app.services.blob_service import BlobStorageService
+from app.services.langchain_retriever import HybridRAGRetriever
+from app.services.langchain_rag_chain import create_rag_chain
 
 
 # =========================================================
 # GLOBAL SERVICES
 # =========================================================
 
-embedding_service = EmbeddingService()
 
 indexing_service = IndexingService()
 
@@ -48,43 +46,85 @@ blob_service = BlobStorageService()
 
 rag_service = None
 
+def documents_to_sources(documents):
+    sources = []
+    seen_sources = set()
 
-def run_rag_in_worker(
-    rag_instance,
+    for document in documents:
+
+        source = document.metadata.get("source")
+
+        if not source:
+            continue
+
+        if source in seen_sources:
+            continue
+
+        seen_sources.add(source)
+
+        sources.append(
+            {
+                "source": source,
+                "text": document.page_content,
+            }
+        )
+
+    return sources
+
+
+def run_langchain_rag_in_worker(
     question,
+    rag_instance,
     top_k,
     source,
     section,
     conversation_id,
-    conversation_history
+    conversation_history,
 ):
     """
-    Run the existing synchronous RAG pipeline
+    Run the LangChain retriever-based RAG pipeline
     inside a worker thread.
-
-    A separate database session is created for
-    this worker because the request DB session
-    must not be shared across threads.
     """
 
-    worker_db = SessionLocal()
+    normalized_history = []
 
-    try:
-
-        return rag_instance.ask(
-            question=question,
-            top_k=top_k,
-            source=source,
-            section=section,
-            conversation_id=conversation_id,
-            conversation_history=conversation_history,
-            db=worker_db
+    for message in conversation_history or []:
+        normalized_history.append(
+            {
+                "role": message.role,
+                "content": message.content,
+            }
         )
 
-    finally:
+    retriever = HybridRAGRetriever(
+        rag_service=rag_instance,
+        top_k=top_k,
+        source=source,
+        section=section,
+        conversation_id=conversation_id,
+        conversation_history=normalized_history,
+    )
 
-        worker_db.close()
+    rag_chain = create_rag_chain(
+        retriever
+    )
 
+    result = rag_chain.invoke(
+        question
+    )
+
+    answer = result["answer"].content
+
+    documents = result["documents"]
+
+    sources = documents_to_sources(
+        documents
+    )
+
+    return {
+        "answer": answer,
+        "sources": sources,
+    }
 
 # =========================================================
 # APPLICATION STARTUP / SHUTDOWN
@@ -217,14 +257,6 @@ async def ask_question(
     request: AskRequest,
     db: Session = Depends(get_db)
 ):
-    print(
-        "ASK REQUEST:",
-        {
-            "conversation_id": request.conversation_id,
-            "question": request.question
-        }
-    )
-
     global rag_service
 
     # -----------------------------------------------------
@@ -237,12 +269,12 @@ async def ask_question(
             detail="Document index is not available. Please index the documents first."
         )
 
-    conversation_service = ConversationService(db)
+  
 
     # -----------------------------------------------------
     # 1. Validate conversation
     # -----------------------------------------------------
-
+    conversation_service = ConversationService(db)
     conversation_history = []
 
     if request.conversation_id is not None:
@@ -259,31 +291,30 @@ async def ask_question(
                 detail="Conversation not found."
             )
 
-        # -------------------------------------------------
-        # Save user's question
-        # -------------------------------------------------
+       # -------------------------------------------------
+       # Save user's question
+       # -------------------------------------------------
 
-        saved_user_message = await conversation_service.add_message(
-            conversation_id=request.conversation_id,
-            role="user",
-            content=request.question
-        )
-
-
-        if saved_user_message is None:
-            raise HTTPException(
-                status_code=404,
-                detail="Conversation no longer exists. Please start a new conversation."
+        if request.save_to_conversation:
+            saved_user_message = await conversation_service.add_message(
+                conversation_id=request.conversation_id,
+                role="user",
+                content=request.question
             )
+
+            if saved_user_message is None:
+                raise HTTPException(
+                    status_code=404,
+                    detail="Conversation no longer exists. Please start a new conversation."
+                )
 
         # -------------------------------------------------
         # Extract and save long-term memories
         # -------------------------------------------------
         memory_manager = MemoryManager(db)
-
-        saved_memories = memory_manager.process_user_message(
-             request.question
-             )
+        memory_manager.process_user_message(
+               request.question
+        )
 
         # -------------------------------------------------
         # Get conversation history for memory
@@ -293,40 +324,42 @@ async def ask_question(
             request.conversation_id
         )
 
-        cache_service = CacheService()
-
-        corpus_signature = cache_service.create_corpus_signature(
-            rag_service.vector_store.metadata
-            )
-
     # -----------------------------------------------------
-    # 2. Run RAG pipeline
+    # 2. Run LangChain RAG / Tool-Calling pipeline
     # -----------------------------------------------------
+
+    cache_service = CacheService()
+
+    corpus_signature = cache_service.create_corpus_signature(
+        rag_service.vector_store.metadata
+    )
 
     try:
-
         cached_response = await cache_service.get(
             question=request.question,
             top_k=request.top_k,
             source=request.source,
             section=request.section,
             corpus_signature=corpus_signature,
-            )
+            conversation_id=request.conversation_id,
+        )
+
         if cached_response is not None:
-             response = cached_response
+            response = cached_response
+
         else:
-            rag_instance = rag_service
             response = await asyncio.to_thread(
-                run_rag_in_worker,
-                rag_instance,
+                run_langchain_rag_in_worker,
                 request.question,
+                rag_service,
                 request.top_k,
                 request.source,
                 request.section,
                 request.conversation_id,
-                conversation_history
+                conversation_history,
+            )
+            
 
-                )
             await cache_service.set(
                 question=request.question,
                 response=response,
@@ -334,35 +367,34 @@ async def ask_question(
                 source=request.source,
                 section=request.section,
                 corpus_signature=corpus_signature,
-                )
+                conversation_id=request.conversation_id,
+            )
 
     except ValueError as exc:
-
         raise HTTPException(
             status_code=400,
-            detail=str(exc)
+            detail=str(exc),
         )
 
     except RuntimeError as exc:
-
         error_message = str(exc)
 
         if "quota" in error_message.lower():
             raise HTTPException(
                 status_code=429,
-                detail=error_message
+                detail=error_message,
             )
 
         raise HTTPException(
             status_code=500,
-            detail="Failed to process the question."
+            detail="Failed to process the question.",
         )
 
     # -----------------------------------------------------
     # 3. Save assistant response
     # -----------------------------------------------------
 
-    if request.conversation_id is not None:
+    if request.conversation_id is not None and request.save_to_conversation:
 
         saved_assistant_message = await conversation_service.add_message(
             conversation_id=request.conversation_id,
@@ -801,7 +833,6 @@ async def delete_conversation(
             document_result["chunks_removed"]
         )
     }
-
 
 # =========================================================
 # PERMANENT DELETE — FUTURE ADMIN/BACKEND OPERATION

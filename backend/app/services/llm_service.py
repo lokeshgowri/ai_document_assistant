@@ -311,9 +311,10 @@ ANSWER:
                     "stream": False,
                     "options": {
                         "temperature": 0,
-                        "seed": 42
+                        "seed": 42,
+                        "num_ctx": 4096,
                     }
-                },
+                },  
                 timeout=(10, 180)  # (connect timeout, read timeout)
             )
 
